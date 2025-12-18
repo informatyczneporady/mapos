@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>POS • Telegram WebApp</title>
+  <style>
+    :root{ --bg:#0f131a; --fg:#e8eef5; --muted:#9fb0c7; --card:#131a24; --border:#253042; --accent:#3fb950; --danger:#f85149; --warn:#f2cc60; }
+    [data-theme="light"]{ --bg:#f7f9fc; --fg:#17212b; --muted:#53657b; --card:#ffffff; --border:#e3e8ef; --accent:#2f7d32; --danger:#c62828; --warn:#b58500; }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto;background:var(--bg);color:var(--fg);}
+    header{padding:8px 12px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .pill{padding:6px 10px;border-radius:16px;background:#0d1219;border:1px solid var(--border)}
+    .wrap{padding:12px 12px 64px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .col{display:flex;flex-direction:column;gap:8px}
+    .btn{border:1px solid var(--border);background:#18202b;color:var(--fg);padding:10px 12px;border-radius:10px;cursor:pointer;transition:.2s}
+    .btn:hover{filter:brightness(1.1)}
+    .btn.acc{background:var(--accent);border-color:var(--accent);color:#07130a;font-weight:600}
+    .btn.dan{background:var(--danger);border-color:var(--danger);color:#fff;font-weight:600}
+    .btn.warn{background:var(--warn);border-color:var(--warn);color:#2b1c00}
+    .input,select,textarea{width:100%;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0d1219;color:var(--fg)}
+    [data-theme="light"] .input,[data-theme="light"] select,[data-theme="light"] textarea{background:#fff;color:#17212b}
+    .list{display:flex;flex-direction:column;gap:8px}
+    .item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px;border:1px dashed var(--border);border-radius:10px}
+    .muted{color:var(--muted);font-size:12px} .mono{font-family:ui-monospace,Consolas,Monaco,monospace}
+    .badge{font-size:12px;padding:2px 6px;border-radius:8px;border:1px solid var(--border);background:#0d1219}
+    .price{font-weight:600}
+    .bottom-nav{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:space-around;background:var(--card);border-top:1px solid var(--border);padding:8px 0;z-index:10}
+    .nav-btn{flex:1;border:none;background:transparent;color:var(--fg);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:2px}
+    .nav-btn.active{color:var(--accent);font-weight:600}
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:50}
+    .box{width:92%;max-width:560px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <div class="pill">POS</div>
+      <div id="shopName" class="muted">Sklep Piotra</div>
+    </div>
+    <div class="row">
+      <button class="btn" id="toggleTheme">Motyw</button>
+      <button class="btn" id="btnOpenCash">Otwórz kasę</button>
+      <button class="btn" id="btnCloseCash">Zamknij kasę</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section id="view-sale" class="view">
+      <div class="card">
+        <h3>Produkty</h3>
+        <div class="row">
+          <input id="searchProd" class="input" placeholder="Szukaj…"/>
+          <select id="filterCat" class="input"><option value="">Wszystkie kategorie</option></select>
+        </div>
+        <div id="prodList" class="list"></div>
+      </div>
+      <div class="card">
+        <h3>Koszyk</h3>
+        <div id="cartList" class="list"></div>
+        <div class="card mono">
+          <div class="row"><span>Cena przed rabatem</span><span id="beforeDisc">0,00 PLN</span></div>
+          <div class="row"><span>Łączny rabat</span><span id="discTotal">0,00 PLN</span></div>
+          <div class="row"><span>Oszczędzasz</span><span id="saveTotal">0,00 PLN</span></div>
+          <div class="row"><span>Netto</span><span id="net">0,00 PLN</span></div>
+          <div class="row"><span>VAT</span><span id="vat">0,00 PLN</span></div>
+          <div class="row"><span>Brutto</span><span id="gross">0,00 PLN</span></div>
+        </div>
+        <div class="row">
+          <input id="cartDiscPct" class="input" type="number" min="0" max="100" step="1" placeholder="Rabat %"/>
+          <input id="cartDiscAmt" class="input" type="number" min="0" step="0.01" placeholder="Rabat kwotowy (PLN)"/>
+          <input id="loyaltyUse" class="input" type="number" min="0" step="1" placeholder="Wykorzystaj punkty"/>
+        </div>
+        <div class="row">
+          <button class="btn acc" id="btnCheckout">Zakończ</button>
+          <button class="btn warn" id="btnForce">Wymuś sprzedaż (PIN 1312)</button>
+          <button class="btn" id="btnBackup">Backup (JSON)</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-orders" class="view" style="display:none">
+      <div class="card">
+        <h3>Zamówienia „na jutro”</h3>
+        <div class="row">
+          <input id="ordCustomer" class="input" placeholder="Klient"/>
+          <input id="ordPhone" class="input" placeholder="Telefon"/>
+        </div>
+        <div class="row">
+          <input id="ordDate" class="input" type="date"/>
+          <select id="ordZone" class="input">
+            <option>Centrum</option><option>Nowa Huta</option><option>Południe</option><option>Inne</option>
+          </select>
+        </div>
+        <div class="row">
+          <input id="ordAddr" class="input" placeholder="Adres"/>
+          <input id="ordEta" class="input" placeholder="ETA (np. 12:00–14:00)"/>
+        </div>
+        <textarea id="ordNotes" class="input" placeholder="Uwagi"></textarea>
+        <div class="row"><button class="btn acc" id="btnCreateOrder">Utwórz z koszyka</button></div>
+        <div id="orderList" class="list" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section id="view-customers" class="view" style="display:none">
+      <div class="card">
+        <h3>Klienci</h3>
+        <div class="row">
+          <input id="custName" class="input" placeholder="Imię/nazwa"/>
+          <input id="custPhone" class="input" placeholder="Telefon"/>
+          <input id="custPoints" class="input" type="number" min="0" step="1" placeholder="Punkty"/>
+          <button class="btn acc" id="btnAddCust">Zapisz</button>
+        </div>
+        <div id="custList" class="list" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section id="view-products" class="view" style="display:none">
+      <div class="card">
+        <h3>Produkty</h3>
+        <div class="row">
+          <input id="prodName" class="input" placeholder="Nazwa"/>
+          <input id="prodCat" class="input" placeholder="Kategoria"/>
+        </div>
+        <div class="row">
+          <input id="prodUnit" class="input" placeholder="Jednostka (szt/kg)"/>
+          <input id="prodBuy" class="input" type="number" step="0.01" placeholder="Cena zakupu"/>
+          <input id="prodSell" class="input" type="number" step="0.01" placeholder="Cena sprzedaży"/>
+        </div>
+        <div class="row">
+          <input id="prodStock" class="input" type="number" min="0" step="1" placeholder="Stan"/>
+          <input id="prodImg" class="input" placeholder="URL zdjęcia"/>
+          <button class="btn acc" id="btnAddProd">Dodaj/Edytuj</button>
+        </div>
+        <div id="prodAdminList" class="list" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section id="view-suppliers" class="view" style="display:none">
+      <div class="card">
+        <h3>Dostawcy</h3>
+        <div class="row">
+          <input id="supName" class="input" placeholder="Nazwa dostawcy"/>
+          <input id="supPhone" class="input" placeholder="Telefon"/>
+          <input id="supAddr" class="input" placeholder="Adres"/>
+          <button class="btn acc" id="btnAddSup">Dodaj/Edytuj</button>
+        </div>
+        <div id="supList" class="list" style="margin-top:8px"></div>
+      </div>
+    </section>
+
+    <section id="view-settings" class="view" style="display:none">
+      <div class="card">
+        <h3>Ustawienia</h3>
+        <div class="row">
+          <input id="setShop" class="input" placeholder="Nazwa sklepu"/>
+          <input id="setVat" class="input" type="number" min="0" max="99" step="1" placeholder="VAT %"/>
+          <input id="setAccent" class="input" placeholder="Kolor akcentu (np. #3fb950)"/>
+        </div>
+        <div class="row">
+          <input id="setCompany" class="input" placeholder="Dane firmy (NIP, adres)"/>
+        </div>
+        <div class="row">
+          <input id="pinForce" class="input" placeholder="PIN wymuszenia (domyślnie 1312)"/>
+          <input id="pinDelivery" class="input" placeholder="PIN dostawy"/>
+          <input id="pinCash" class="input" placeholder="PIN kasy"/>
+        </div>
+        <div class="row">
+          <button class="btn acc" id="btnSaveSettings">Zapisz</button>
+          <button class="btn dan" id="btnReset">Reset danych</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="sale">🛒 Sprzedaż</button>
+    <button class="nav-btn" data-tab="orders">📦 Zamówienia</button>
+    <button class="nav-btn" data-tab="customers">👥 Klienci</button>
+    <button class="nav-btn" data-tab="products">📦 Produkty</button>
+    <button class="nav-btn" data-tab="suppliers">🚚 Dostawcy</button>
+    <button class="nav-btn" data-tab="settings">⚙️ Ustawienia</button>
+  </nav>
+
+  <!-- Modal płatności -->
+  <div class="modal" id="payModal">
+    <div class="box">
+      <h3>Płatność</h3>
+      <div class="row">
+        <input id="payCash" class="input" type="number" step="0.01" placeholder="Gotówka"/>
+        <input id="payCard" class="input" type="number" step="0.01" placeholder="Karta"/>
+      </div>
+      <div class="row">
+        <input id="payBlik" class="input" type="number" step="0.01" placeholder="BLIK"/>
+        <input id="payBank" class="input" type="number" step="0.01" placeholder="Przelew"/>
+      </div>
+      <div class="row">
+        <input id="payPoints" class="input" type="number" step="1" placeholder="Punkty (1 pkt = 1 PLN)"/>
+      </div>
+      <div class="row mono">
+        <div>Do zapłaty: <span id="payDue">0,00</span> PLN</div>
+        <div>Zapłacono: <span id="paySum">0,00</span> PLN</div>
+        <div>Reszta: <span id="payChange">0,00</span> PLN</div>
+      </div>
+      <div class="row">
+        <button class="btn acc" id="payOk">Zatwierdź</button>
+        <button class="btn" id="payCancel">Anuluj</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal PIN -->
+  <div class="modal" id="pinModal">
+    <div class="box">
+      <h3 id="pinTitle">Wprowadź PIN</h3>
+      <input id="pinInput" class="input mono" type="password" inputmode="numeric" placeholder="****"/>
+      <div class="row">
+        <button class="btn acc" id="pinOk">OK</button>
+        <button class="btn" id="pinCancel">Anuluj</button>
+      </div>
+      <div class="muted" id="pinHint"></div>
+    </div>
+  </div>
+
+  <script>
+    // Telegram WebApp init
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#0f131a"); tg.setBackgroundColor("#0f131a"); }
+
+    // Helpers
+    const PLN = (n)=> (Number(n)||0).toFixed(2).replace(".", ",");
+    const toNum = (v)=> Number(v||0);
+    const uid = (p="id")=> p + Math.random().toString(36).slice(2,8);
+
+    // IndexedDB wrapper
+    const db = {
+      open(){
+        return new Promise((resolve,reject)=>{
+          const req = indexedDB.open("pos_db", 1);
+          req.onupgradeneeded = (e)=>{
+            const d = e.target.result;
+            d.createObjectStore("settings",{keyPath:"id"});
+            d.createObjectStore("products",{keyPath:"id"});
+            d.createObjectStore("customers",{keyPath:"id"});
+            d.createObjectStore("suppliers",{keyPath:"id"});
+            d.createObjectStore("orders",{keyPath:"id"});
+            d.createObjectStore("sales",{keyPath:"id"});
+            d.createObjectStore("cash",{keyPath:"id"});
+          };
+          req.onsuccess = ()=> resolve(req.result);
+          req.onerror = ()=> reject(req.error);
+        });
+      },
+      async put(storeName, obj){
+        const d = await db.open();
+        return new Promise((resolve,reject)=>{
+          const tx = d.transaction([storeName],"readwrite");
+          tx.objectStore(storeName).put(obj);
+          tx.oncomplete = ()=> resolve(true); tx.onerror = ()=> reject(tx.error);
+        });
+      },
+      async get(storeName, id){
+        const d = await db.open();
+        return new Promise((resolve,reject)=>{
+          const tx = d.transaction([storeName],"readonly");
+          const r = tx.objectStore(storeName).get(id);
+          r.onsuccess = ()=> resolve(r.result); r.onerror = ()=> reject(r.error);
+        });
+      },
+      async all(storeName){
+        const d = await db.open();
+        return new Promise((resolve,reject)=>{
+          const tx = d.transaction([storeName],"readonly");
+          const req = tx.objectStore(storeName).getAll();
+          req.onsuccess = ()=> resolve(req.result||[]); req.onerror = ()=> reject(req.error);
+        });
+      },
+      async del(storeName, id){
+        const d = await db.open();
+        return new Promise((resolve,reject)=>{
+          const tx = d.transaction([storeName],"readwrite");
+          tx.objectStore(storeName).delete(id);
+          tx.oncomplete = ()=> resolve(true); tx.onerror = ()=> reject(tx.error);
+        });
+      }
+    };
+
+    // Default data
+    const defaults = {
+      settings:{ id:"settings", shopName:"Sklep Piotra", vat:23, accent:"#3fb950", company:"NIP 0000000000", pins:{force:"1312",delivery:"5555",cash:"7777"}, theme:"dark" },
+      products:[
+        {id:"p1", name:"Chleb", cat:"Spożywcze", unit:"szt", buy:3.20, sell:5.99, stock:20, img:""},
+        {id:"p2", name:"Mleko 2%", cat:"Nabiał", unit:"szt", buy:2.10, sell:3.49, stock:15, img:""},
+        {id:"p3", name:"Masło", cat:"Nabiał", unit:"szt", buy:6.90, sell:8.99, stock:10, img:""}
+      ]
+    };
+
+    const state = {
+      settings:null,
+      products:[],
+      customers:[],
+      suppliers:[],
+      orders:[],
+      sales:[],
+      cash:null,
+      cart:[],
+      promotions:{ twoPlusOne:true, discPct:0, discAmt:0 },
+      loyaltyUse:0,
+      pinCtx:null
+    };
+
+    // UI init
+    async function init(){
+      // Load settings or set defaults
+      state.settings = await db.get("settings","settings") || defaults.settings;
+      await db.put("settings", state.settings);
+      document.getElementById("shopName").textContent = state.settings.shopName;
+      document.body.dataset.theme = state.settings.theme==="light" ? "light" : "dark";
+      document.documentElement.style.setProperty("--accent", state.settings.accent);
+
+      // Load collections (seed if empty)
+      state.products = await db.all("products");
+      if(state.products.length===0){ for(const p of defaults.products){ await db.put("products", p); } state.products = await db.all("products"); }
+      state.customers = await db.all("customers");
+      state.suppliers = await db.all("suppliers");
+      state.orders = await db.all("orders");
+      state.sales = await db.all("sales");
+      state.cash = (await db.get("cash","cash")) || { id:"cash", open:false, openedAt:null, closedAt:null };
+
+      renderSale(); renderOrders(); renderCustomers(); renderProductsAdmin(); renderSuppliers();
+      bindNav();
+    }
+
+    // Navigation
+    function bindNav(){
+      document.querySelectorAll(".nav-btn").forEach(b=>{
+        b.addEventListener("click", ()=>{
+          document.querySelectorAll(".nav-btn").forEach(x=> x.classList.remove("active"));
+          b.classList.add("active");
+          const tab = b.dataset.tab;
+          document.querySelectorAll(".view").forEach(v=> v.style.display="none");
+          document.getElementById("view-"+tab).style.display="block";
+          if(tab==="sale") renderSale();
+          if(tab==="orders") renderOrders();
+          if(tab==="customers") renderCustomers();
+          if(tab==="products") renderProductsAdmin();
+          if(tab==="suppliers") renderSuppliers();
+        });
+      });
+    }
+
+    // Sale render
+    function renderSale(){
+      // categories
+      const cats = Array.from(new Set(state.products.map(p=> p.cat))).sort();
+      const catSel = document.getElementById("filterCat");
+      catSel.innerHTML = '<option value="">Wszystkie kategorie</option>' + cats.map(c=> `<option>${c}</option>`).join("");
+      // list
+      const q = document.getElementById("searchProd").value?.toLowerCase() || "";
+      const cat = catSel.value || "";
+      const list = state.products.filter(p=>
+        (q==="" || p.name.toLowerCase().includes(q)) && (cat==="" || p.cat===cat)
+      );
+      const wrap = document.getElementById("prodList");
+      wrap.innerHTML = "";
+      list.forEach(p=>{
+        const stockBadge = p.stock<=0 ? `<span class="badge" style="border-color:var(--danger);background:var(--danger);color:#fff">Brak</span>` :
+                           p.stock<5 ? `<span class="badge" style="border-color:var(--warn);background:var(--warn);color:#2b1c00">Mało: ${p.stock}</span>` :
+                           `<span class="badge">Stan: ${p.stock}</span>`;
+        const div = document.createElement("div");
+        div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${p.name}</strong> <span class="muted">(${p.cat})</span></div>
+            <div class="muted">Cena: <span class="price">${PLN(p.sell)} PLN</span> • Jedn: ${p.unit}</div>
+            <div>${stockBadge}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="addToCart('${p.id}')">Dodaj</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+      renderCart();
+      document.getElementById("searchProd").oninput = renderSale;
+      document.getElementById("filterCat").onchange = renderSale;
+    }
+
+    // Cart ops
+    window.addToCart = (pid)=>{
+      const p = state.products.find(x=> x.id===pid);
+      if(!p) return;
+      const ex = state.cart.find(x=> x.id===pid);
+      if(p.stock<=0){ return showPin("force","Brak w magazynie — wymuś sprzedaż PIN-em.", ()=>{}); }
+      if(ex){
+        if(ex.qty < p.stock){ ex.qty += 1; }
+        else { return showPin("force","Brak stanu — wymuś sprzedaż PIN-em.", ()=>{ ex.qty += 1; renderCart(); }); }
+      } else {
+        state.cart.push({ id:p.id, name:p.name, price:p.sell, qty:1 });
+      }
+      renderCart();
+    };
+    window.changeQty = (pid,delta)=>{
+      const ex = state.cart.find(x=> x.id===pid); if(!ex) return;
+      const prod = state.products.find(x=> x.id===pid);
+      const newQty = Math.max(1, ex.qty + delta);
+      if(newQty > prod.stock){
+        return showPin("force","Brak stanu — wymuś sprzedaż PIN-em.", ()=>{ ex.qty = newQty; renderCart(); });
+      }
+      ex.qty = newQty; renderCart();
+    };
+    window.removeFromCart = (pid)=>{
+      const i = state.cart.findIndex(x=> x.id===pid);
+      if(i>=0){ state.cart.splice(i,1); renderCart(); }
+    };
+
+    // Totals
+    function calcCartTotals(){
+      let raw = 0, sum = 0;
+      const promoDetails = [];
+      state.cart.forEach(i=>{
+        raw += i.price*i.qty;
+        let chargeQty = i.qty;
+        if(state.promotions.twoPlusOne){
+          const free = Math.floor(i.qty/3);
+          chargeQty = i.qty - free;
+          if(free>0) promoDetails.push(`${i.name}: ${free} gratis`);
+        }
+        sum += i.price*chargeQty;
+      });
+      const discPctAmt = sum * (toNum(state.promotions.discPct)/100);
+      const discAmt = toNum(state.promotions.discAmt);
+      const discount = discPctAmt + discAmt;
+      const afterDisc = Math.max(0, sum - discount);
+      const loyaltyUse = Math.min(toNum(state.loyaltyUse), afterDisc);
+      const net = Math.max(0, afterDisc - loyaltyUse);
+      const vat = net * (toNum(state.settings.vat)/100);
+      const gross = net + vat;
+      return { raw, sum, discount, afterDisc, loyaltyUse, net, vat, gross, promoDetails };
+    }
+    function renderCart(){
+      const c = document.getElementById("cartList");
+      c.innerHTML = "";
+      state.cart.forEach(i=>{
+        const row = document.createElement("div");
+        row.className="item";
+        row.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${i.name}</strong> <span class="muted">x${i.qty}</span></div>
+            <div class="muted mono">${PLN(i.price)} PLN/szt</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="changeQty('${i.id}',-1)">-</button>
+            <button class="btn" onclick="changeQty('${i.id}',1)">+</button>
+            <button class="btn dan" onclick="removeFromCart('${i.id}')">Usuń</button>
+          </div>
+        `;
+        c.appendChild(row);
+      });
+      const t = calcCartTotals();
+      document.getElementById("beforeDisc").textContent = PLN(t.raw) + " PLN";
+      document.getElementById("discTotal").textContent = PLN(t.discount) + " PLN";
+      document.getElementById("saveTotal").textContent = PLN(t.raw - t.sum) + " PLN";
+      document.getElementById("net").textContent = PLN(t.net) + " PLN";
+      document.getElementById("vat").textContent = PLN(t.vat) + " PLN";
+      document.getElementById("gross").textContent = PLN(t.gross) + " PLN";
+      document.getElementById("cartDiscPct").onchange = (e)=>{ state.promotions.discPct = toNum(e.target.value); renderCart(); };
+      document.getElementById("cartDiscAmt").onchange = (e)=>{ state.promotions.discAmt = toNum(e.target.value); renderCart(); };
+      document.getElementById("loyaltyUse").onchange = (e)=>{ state.loyaltyUse = toNum(e.target.value); renderCart(); };
+    }
+
+    // Checkout & payment
+    document.getElementById("btnCheckout").onclick = ()=>{
+      const t = calcCartTotals();
+      if(state.cart.length===0) return alert("Koszyk jest pusty.");
+      openPayModal(t.gross);
+    };
+    function openPayModal(due){
+      const m = document.getElementById("payModal");
+      payCash.value=""; payCard.value=""; payBlik.value=""; payBank.value=""; payPoints.value="";
+      document.getElementById("payDue").textContent = PLN(due);
+      function upd(){
+        const sum = toNum(payCash.value)+toNum(payCard.value)+toNum(payBlik.value)+toNum(payBank.value)+toNum(payPoints.value);
+        document.getElementById("paySum").textContent = PLN(sum);
+        document.getElementById("payChange").textContent = PLN(sum - due);
+      }
+      [payCash,payCard,payBlik,payBank,payPoints].forEach(i=> i.oninput = upd);
+      m.style.display="flex";
+      payCancel.onclick = ()=> m.style.display="none";
+      payOk.onclick = ()=>{
+        const paid = toNum(payCash.value)+toNum(payCard.value)+toNum(payBlik.value)+toNum(payBank.value)+toNum(payPoints.value);
+        if(paid < due) return alert("Za mało zapłacono.");
+        finalizeSale({ pay:{ cash:toNum(payCash.value), card:toNum(payCard.value), blik:toNum(payBlik.value), bank:toNum(payBank.value), points:toNum(payPoints.value) }});
+        m.style.display="none";
+      };
+    }
+    async function finalizeSale(extra){
+      // update stock
+      for(const i of state.cart){
+        const p = state.products.find(x=> x.id===i.id);
+        if(p){ p.stock = Math.max(0, p.stock - i.qty); await db.put("products", p); }
+      }
+      const totals = calcCartTotals();
+      const sale = { id:uid("sale_"), at:new Date().toISOString(), items:JSON.parse(JSON.stringify(state.cart)), totals, vatPct:state.settings.vat, extra };
+      await db.put("sales", sale);
+      state.sales.push(sale);
+      // Telegram send
+      if(tg){ tg.sendData(JSON.stringify({type:"sale", sale})); tg.MainButton.setText("Zamknij"); tg.MainButton.show(); tg.MainButton.onClick(()=> tg.close()); }
+      state.cart = []; renderCart();
+      alert("Sprzedaż zakończona.");
+    }
+
+    // PIN
+    function showPin(type, hint, onOk){
+      state.pinCtx = { type, onOk };
+      pinTitle.textContent = "Wprowadź PIN ("+type+")";
+      pinHint.textContent = hint||"";
+      pinInput.value="";
+      pinModal.style.display="flex";
+    }
+    pinCancel.onclick = ()=> pinModal.style.display="none";
+    pinOk.onclick = ()=>{
+      const val = (pinInput.value||"").trim();
+      const pins = state.settings.pins;
+      const ctx = state.pinCtx?.type;
+      const ok = (ctx==="force" && val===pins.force) || (ctx==="delivery" && val===pins.delivery) || (ctx==="cash" && val===pins.cash);
+      if(ok){ pinModal.style.display="none"; state.pinCtx?.onOk?.(); } else alert("Niepoprawny PIN.");
+    };
+    document.getElementById("btnForce").onclick = ()=> showPin("force","Wymuszenie sprzedaży przy braku stanu.", ()=> alert("Możesz dodać ponad stan."));
+
+    // Orders
+    document.getElementById("btnCreateOrder").onclick = async ()=>{
+      const zone = ordZone.value;
+      const fee = zone==="Centrum"?20: zone==="Nowa Huta"?25: zone==="Południe"?30:35;
+      const items = JSON.parse(JSON.stringify(state.cart));
+      if(items.length===0) return alert("Najpierw dodaj produkty do koszyka.");
+      const order = { id:uid("ord_"), at:new Date().toISOString(), customer:{ name:ordCustomer.value, phone:ordPhone.value }, date:ordDate.value, delivery:{ zone, fee, addr:ordAddr.value, eta:ordEta.value }, notes:ordNotes.value, items };
+      await db.put("orders", order); state.orders.push(order);
+      alert("Zamówienie utworzone."); renderOrders();
+    };
+    function renderOrders(){
+      const wrap = document.getElementById("orderList"); wrap.innerHTML="";
+      state.orders.forEach(o=>{
+        const sum = o.items.reduce((s,i)=> s + i.price*i.qty, 0) + (o.delivery?.fee||0);
+        const div = document.createElement("div"); div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${o.customer.name||"-"}</strong> <span class="muted">${o.customer.phone||""}</span></div>
+            <div class="muted">Data: ${o.date} • Dostawa: ${o.delivery.zone} (+${PLN(o.delivery.fee)} PLN)</div>
+            <div class="muted">Suma: ${PLN(sum)} PLN • PPO</div>
+          </div>
+          <div class="row">
+            <button class="btn acc" onclick="fulfillOrder('${o.id}')">Zrealizuj</button>
+            <button class="btn dan" onclick="deleteOrder('${o.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.fulfillOrder = async (id)=>{
+      const o = state.orders.find(x=> x.id===id); if(!o) return;
+      state.cart = JSON.parse(JSON.stringify(o.items)); renderCart(); alert("Załadowano zamówienie do koszyka.");
+    };
+    window.deleteOrder = async (id)=>{
+      await db.del("orders", id);
+      state.orders = state.orders.filter(x=> x.id!==id);
+      renderOrders();
+    };
+
+    // Customers
+    document.getElementById("btnAddCust").onclick = async ()=>{
+      const name = custName.value.trim(); if(!name) return alert("Podaj nazwę.");
+      const phone = custPhone.value.trim();
+      const pts = toNum(custPoints.value);
+      let c = state.customers.find(x=> x.name===name || (phone && x.phone===phone));
+      if(c){ c.phone = phone; c.points = pts; await db.put("customers", c); }
+      else { c = { id:uid("c_"), name, phone, points:pts, history:[] }; await db.put("customers", c); state.customers.push(c); }
+      alert("Klient zapisany."); renderCustomers();
+    };
+    function renderCustomers(){
+      const wrap = document.getElementById("custList"); wrap.innerHTML="";
+      state.customers.forEach(c=>{
+        const div = document.createElement("div"); div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${c.name}</strong> <span class="muted">${c.phone||""}</span></div>
+            <div class="muted">Punkty: ${c.points||0}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="attachCustomer('${c.id}')">Przypisz do koszyka</button>
+            <button class="btn dan" onclick="removeCustomer('${c.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.attachCustomer = (id)=>{
+      const c = state.customers.find(x=> x.id===id); if(!c) return;
+      loyaltyUse.value = c.points||0; state.loyaltyUse = c.points||0; renderCart();
+      alert("Klient przypisany, punkty wczytane.");
+    };
+    window.removeCustomer = async (id)=>{
+      await db.del("customers", id);
+      state.customers = state.customers.filter(x=> x.id!==id);
+      renderCustomers();
+    };
+
+    // Products admin
+    document.getElementById("btnAddProd").onclick = async ()=>{
+      const name = prodName.value.trim(); if(!name) return alert("Podaj nazwę produktu.");
+      const ex = state.products.find(x=> x.name===name);
+      const p = {
+        id: ex?.id || uid("p_"),
+        name,
+        cat: prodCat.value.trim()||"Ogólne",
+        unit: prodUnit.value.trim()||"szt",
+        buy: toNum(prodBuy.value), sell: toNum(prodSell.value),
+        stock: Math.max(0, toNum(prodStock.value)),
+        img: prodImg.value.trim()
+      };
+      await db.put("products", p);
+      if(ex){ Object.assign(ex, p); } else { state.products.push(p); }
+      alert("Produkt zapisany."); renderProductsAdmin(); renderSale();
+    };
+    function renderProductsAdmin(){
+      const wrap = document.getElementById("prodAdminList"); wrap.innerHTML="";
+      state.products.forEach(p=>{
+        const div = document.createElement("div"); div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${p.name}</strong> <span class="muted">[${p.cat}]</span></div>
+            <div class="muted">Zakup: ${PLN(p.buy)} • Sprzedaż: ${PLN(p.sell)} • Stan: ${p.stock} ${p.unit}</div>
+            <div class="muted">${p.img || "-"}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="editProd('${p.id}')">Edytuj</button>
+            <button class="btn dan" onclick="deleteProd('${p.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.editProd = (id)=>{
+      const p = state.products.find(x=> x.id===id); if(!p) return;
+      prodName.value=p.name; prodCat.value=p.cat; prodUnit.value=p.unit; prodBuy.value=p.buy; prodSell.value=p.sell; prodStock.value=p.stock; prodImg.value=p.img;
+      alert("Załadowano dane produktu.");
+    };
+    window.deleteProd = async (id)=>{
+      await db.del("products", id);
+      state.products = state.products.filter(x=> x.id!==id);
+      renderProductsAdmin(); renderSale();
+    };
+
+    // Suppliers
+    document.getElementById("btnAddSup").onclick = async ()=>{
+      const name = supName.value.trim(); if(!name) return alert("Podaj nazwę.");
+      const ex = state.suppliers.find(x=> x.name===name);
+      const s = { id: ex?.id || uid("s_"), name, phone: supPhone.value.trim(), addr: supAddr.value.trim() };
+      await db.put("suppliers", s);
+      if(ex){ Object.assign(ex, s); } else { state.suppliers.push(s); }
+      alert("Dostawca zapisany."); renderSuppliers();
+    };
+    function renderSuppliers(){
+      const wrap = document.getElementById("supList"); wrap.innerHTML="";
+      state.suppliers.forEach(s=>{
+        const div = document.createElement("div"); div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${s.name}</strong> <span class="muted">${s.phone||""}</span></div>
+            <div class="muted">${s.addr||""}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="receiveDelivery('${s.id}')">Przyjmij dostawę (PIN)</button>
+            <button class="btn dan" onclick="deleteSupplier('${s.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.receiveDelivery = (sid)=>{
+      showPin("delivery","PIN do przyjęcia dostawy", async ()=>{
+        const name = prompt("Produkt (dokładna nazwa):");
+        const qty = toNum(prompt("Ilość:"));
+        const buy = toNum(prompt("Cena zakupu (PLN):"));
+        const p = state.products.find(x=> x.name===name);
+        if(!p) return alert("Nie znaleziono produktu.");
+        p.stock += qty; p.buy = buy || p.buy;
+        await db.put("products", p);
+        alert("Dostawa przyjęta."); renderProductsAdmin(); renderSale();
+      });
+    };
+    window.deleteSupplier = async (sid)=>{
+      await db.del("suppliers", sid);
+      state.suppliers = state.suppliers.filter(x=> x.id!==sid);
+      renderSuppliers();
+    };
+
+    // Cash
+    document.getElementById("btnOpenCash").onclick = ()=> showPin("cash","PIN otwarcia kasy", async ()=>{
+      state.cash.open = true; state.cash.openedAt = new Date().toISOString(); await db.put("cash", state.cash); alert("Kasa otwarta.");
+    });
+    document.getElementById("btnCloseCash").onclick = ()=> showPin("cash","PIN zamknięcia kasy", async ()=>{
+      state.cash.open = false; state.cash.closedAt = new Date().toISOString(); await db.put("cash", state.cash); alert("Kasa zamknięta.");
+    });
+
+    // Settings
+    function renderSettings(){
+      setShop.value = state.settings.shopName;
+      setVat.value = state.settings.vat;
+      setAccent.value = state.settings.accent;
+      setCompany.value = state.settings.company;
+      pinForce.value = state.settings.pins.force;
+      pinDelivery.value = state.settings.pins.delivery;
+      pinCash.value = state.settings.pins.cash;
+    }
+    document.getElementById("btnSaveSettings").onclick = async ()=>{
+      state.settings.shopName = setShop.value || state.settings.shopName;
+      state.settings.vat = toNum(setVat.value || state.settings.vat);
+      state.settings.accent = setAccent.value || state.settings.accent;
+      state.settings.company = setCompany.value || state.settings.company;
+      state.settings.pins.force = pinForce.value || state.settings.pins.force;
+      state.settings.pins.delivery = pinDelivery.value || state.settings.pins.delivery;
+      state.settings.pins.cash = pinCash.value || state.settings.pins.cash;
+      document.getElementById("shopName").textContent = state.settings.shopName;
+      document.documentElement.style.setProperty("--accent", state.settings.accent);
+      await db.put("settings", state.settings);
+      alert("Ustawienia zapisane.");
+    };
+    document.getElementById("toggleTheme").onclick = async ()=>{
+      state.settings.theme = state.settings.theme==="light" ? "dark" : "light";
+      document.body.dataset.theme = state.settings.theme==="light" ? "light" : "dark";
+      await db.put("settings", state.settings);
+    };
+    document.getElementById("btnReset").onclick = ()=>{
+      if(confirm("Na pewno zresetować dane?")){ indexedDB.deleteDatabase("pos_db"); alert("Zresetowano. Odśwież stronę."); }
+    };
+
+    // Backup
+    document.getElementById("btnBackup").onclick = async ()=>{
+      const data = {
+        settings: await db.get("settings","settings"),
+        products: await db.all("products"),
+        customers: await db.all("customers"),
+        suppliers: await db.all("suppliers"),
+        orders: await db.all("orders"),
+        sales: await db.all("sales"),
+        cash: await db.get("cash","cash")
+      };
+      const blob = new Blob([JSON.stringify(data,null,2)], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = url; a.download = "pos-backup.json"; a.click();
+      URL.revokeObjectURL(url);
+    };
+
+    // Events to refresh forms
+    document.querySelector('[data-tab="settings"]').addEventListener("click", renderSettings);
+
+    // Start
+    init();
+  </script>
+</body>
+</html>
