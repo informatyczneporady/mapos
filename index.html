@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>POS WebApp (PL)</title>
+  <style>
+    :root { --bg:#101419; --fg:#e8eef5; --muted:#9fb0c7; --accent:#3fb950; --danger:#f85149; }
+    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg); color:var(--fg); }
+    header { padding:12px; border-bottom:1px solid #202636; display:flex; gap:10px; align-items:center; }
+    h1 { font-size:16px; margin:0; }
+    .wrap { display:grid; grid-template-columns:1fr; gap:12px; padding:12px; }
+    @media(min-width:900px){ .wrap{ grid-template-columns: 1fr 1fr; } }
+    .card { background:#121821; border:1px solid #202636; border-radius:10px; padding:12px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .grid { display:grid; grid-template-columns: repeat(2,1fr); gap:8px; }
+    .btn { border:1px solid #2a3344; background:#17202b; color:var(--fg); padding:10px 12px; border-radius:8px; cursor:pointer; }
+    .btn.acc { background:var(--accent); border-color:var(--accent); color:#07130a; font-weight:600; }
+    .btn.dan { background:var(--danger); border-color:var(--danger); color:#300; font-weight:600; }
+    .btn.ghost { background:transparent; }
+    .input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #2a3344; background:#0e131a; color:var(--fg); }
+    .list { display:flex; flex-direction:column; gap:8px; }
+    .item { display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px dashed #273043; border-radius:8px; }
+    .muted { color:var(--muted); font-size:12px; }
+    .price { font-weight:600; }
+    .totals { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    footer { padding:12px; border-top:1px solid #202636; display:flex; gap:8px; }
+    /* Modal */
+    .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); }
+    .modal .box { width:90%; max-width:480px; background:#0f1520; border:1px solid #273043; border-radius:12px; padding:16px; }
+    .right { text-align:right; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>POS • Telegram WebApp</h1>
+    <span class="muted">PL | Offline-ready</span>
+  </header>
+
+  <div class="wrap">
+    <section class="card">
+      <h2 style="margin-top:0">Produkty</h2>
+      <div class="grid" id="products"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="search" class="input" placeholder="Szukaj produktu…" />
+        <button class="btn" id="clearCart">Wyczyść koszyk</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Koszyk</h2>
+      <div class="list" id="cart"></div>
+      <div class="row" style="margin-top:8px">
+        <input id="discount" class="input" type="number" min="0" max="100" step="1" placeholder="Rabat (%)" />
+        <select id="tax" class="input">
+          <option value="0">VAT 0%</option>
+          <option value="5">VAT 5%</option>
+          <option value="8">VAT 8%</option>
+          <option value="23" selected>VAT 23%</option>
+        </select>
+      </div>
+
+      <div class="card" style="margin-top:8px">
+        <div class="totals mono">
+          <div>Netto</div><div class="right" id="net">0,00</div>
+          <div>VAT</div><div class="right" id="vat">0,00</div>
+          <div>Brutto</div><div class="right" id="gross">0,00</div>
+        </div>
+      </div>
+
+      <h3>Podział płatności</h3>
+      <div class="row">
+        <input id="payCash" class="input" type="number" step="0.01" placeholder="Gotówka (PLN)" />
+        <input id="payCard" class="input" type="number" step="0.01" placeholder="Karta (PLN)" />
+        <input id="payBlik" class="input" type="number" step="0.01" placeholder="Blik (PLN)" />
+      </div>
+      <div class="muted">Suma płatności musi równać się kwocie brutto.</div>
+
+      <div class="row" style="margin-top:10px">
+        <button class="btn acc" id="checkout">Zatwierdź sprzedaż</button>
+        <button class="btn ghost" id="print">Paragon (kopiuj)</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Klient i lojalność</h2>
+      <div class="list">
+        <input id="customerName" class="input" placeholder="Imię i nazwisko / nazwa firmy" />
+        <input id="customerPhone" class="input" placeholder="Telefon (opcjonalnie)" />
+        <input id="loyalty" class="input" type="number" min="0" step="1" placeholder="Punkty lojalnościowe (do użycia)" />
+      </div>
+      <div class="muted">Punkty lojalnościowe odejmują 1 PLN za punkt (maks. do kwoty brutto).</div>
+    </section>
+  </div>
+
+  <footer>
+    <button class="btn" id="pin">PIN autoryzacja</button>
+    <button class="btn" id="saveState">Zapisz stan</button>
+    <button class="btn" id="loadState">Wczytaj stan</button>
+    <span class="muted">• v1.0</span>
+  </footer>
+
+  <!-- Modale -->
+  <div class="modal" id="pinModal">
+    <div class="box">
+      <h3>Wprowadź PIN kasjera</h3>
+      <input id="pinInput" class="input mono" type="password" inputmode="numeric" placeholder="****" />
+      <div class="row" style="margin-top:10px">
+        <button class="btn acc" id="pinOk">OK</button>
+        <button class="btn dan" id="pinCancel">Anuluj</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Domyślny PIN: 1234 (zmień w kodzie).</div>
+    </div>
+  </div>
+
+  <div class="modal" id="doneModal">
+    <div class="box">
+      <h3>Sprzedaż zakończona</h3>
+      <p>Transakcja została zapisana. Możesz wysłać dane do bota lub skopiować paragon.</p>
+      <div class="row">
+        <button class="btn acc" id="sendToBot">Wyślij do Telegram</button>
+        <button class="btn" id="closeDone">Zamknij</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- Telegram WebApp init ---
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      tg.setHeaderColor("#101419");
+      tg.setBackgroundColor("#101419");
+      tg.MainButton.setText("Zamknij i wyślij");
+      tg.MainButton.hide();
+    }
+
+    // --- Dane produktów (demo) ---
+    const PRODUCTS = [
+      { id:"p1", name:"Chleb", price:5.99 },
+      { id:"p2", name:"Mleko 2%", price:3.49 },
+      { id:"p3", name:"Masło", price:8.99 },
+      { id:"p4", name:"Ser żółty", price:6.75 },
+      { id:"p5", name:"Kawa 250g", price:24.90 },
+      { id:"p6", name:"Herbata 100 torebek", price:15.50 },
+      { id:"p7", name:"Jabłka 1kg", price:4.20 },
+      { id:"p8", name:"Woda 1.5L", price:2.10 }
+    ];
+
+    // --- Stan aplikacji ---
+    const state = {
+      cart: [], // {id,name,price,qty}
+      discountPct: 0,
+      taxPct: 23,
+      pay: { cash:0, card:0, blik:0 },
+      customer: { name:"", phone:"" },
+      loyalty: 0,
+      pinOk: false
+    };
+
+    // --- Utils ---
+    const fmt = (n)=> (n||0).toFixed(2).replace(".", ",");
+    function calcTotals(){
+      const sum = state.cart.reduce((s,i)=> s + i.price*i.qty, 0);
+      const discount = sum * (state.discountPct/100);
+      const afterDisc = Math.max(0, sum - discount);
+      const loyalty = Math.min(state.loyalty, afterDisc); // 1 pkt = 1 PLN
+      const net = Math.max(0, afterDisc - loyalty);
+      const vat = net * (state.taxPct/100);
+      const gross = net + vat;
+      return { sum, discount, loyalty, net, vat, gross };
+    }
+
+    function renderProducts(list){
+      const wrap = document.getElementById("products");
+      wrap.innerHTML = "";
+      list.forEach(p=>{
+        const b = document.createElement("button");
+        b.className = "btn";
+        b.textContent = `${p.name} • ${fmt(p.price)} PLN`;
+        b.onclick = ()=> addToCart(p);
+        wrap.appendChild(b);
+      });
+    }
+
+    function addToCart(p){
+      const ex = state.cart.find(i=> i.id===p.id);
+      if(ex){ ex.qty += 1; } else { state.cart.push({ id:p.id, name:p.name, price:p.price, qty:1 }); }
+      renderCart();
+    }
+    function removeFromCart(id){
+      const i = state.cart.findIndex(x=> x.id===id);
+      if(i>=0){ state.cart.splice(i,1); renderCart(); }
+    }
+    function changeQty(id,delta){
+      const ex = state.cart.find(i=> i.id===id);
+      if(!ex) return;
+      ex.qty = Math.max(1, ex.qty + delta);
+      renderCart();
+    }
+
+    function renderCart(){
+      const c = document.getElementById("cart");
+      c.innerHTML = "";
+      state.cart.forEach(i=>{
+        const row = document.createElement("div");
+        row.className = "item";
+        row.innerHTML = `
+          <div>
+            <div>${i.name} <span class="muted">x${i.qty}</span></div>
+            <div class="muted mono">${fmt(i.price)} PLN/szt</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="changeQty('${i.id}',-1)">-</button>
+            <button class="btn" onclick="changeQty('${i.id}',1)">+</button>
+            <button class="btn dan" onclick="removeFromCart('${i.id}')">Usuń</button>
+          </div>
+        `;
+        c.appendChild(row);
+      });
+
+      // totals
+      const totals = calcTotals();
+      document.getElementById("net").textContent = fmt(totals.net);
+      document.getElementById("vat").textContent = fmt(totals.vat);
+      document.getElementById("gross").textContent = fmt(totals.gross);
+    }
+
+    function saveLocal(){
+      localStorage.setItem("pos_state", JSON.stringify(state));
+      toast("Zapisano stan.");
+    }
+    function loadLocal(){
+      const raw = localStorage.getItem("pos_state");
+      if(!raw) return toast("Brak zapisanego stanu.");
+      const loaded = JSON.parse(raw);
+      Object.assign(state, loaded);
+      // rebind simple inputs after load
+      document.getElementById("discount").value = state.discountPct;
+      document.getElementById("tax").value = state.taxPct;
+      document.getElementById("payCash").value = state.pay.cash || "";
+      document.getElementById("payCard").value = state.pay.card || "";
+      document.getElementById("payBlik").value = state.pay.blik || "";
+      document.getElementById("customerName").value = state.customer.name || "";
+      document.getElementById("customerPhone").value = state.customer.phone || "";
+      document.getElementById("loyalty").value = state.loyalty || "";
+      renderCart();
+      toast("Wczytano stan.");
+    }
+
+    function toast(msg){
+      if(tg){ tg.showPopup({ title:"Informacja", message:msg, buttons:[{type:"ok"}] }); }
+      else { alert(msg); }
+    }
+
+    function buildReceipt(){
+      const t = calcTotals();
+      const lines = [];
+      lines.push("=== PARAGON ===");
+      lines.push(new Date().toLocaleString("pl-PL"));
+      lines.push("");
+      state.cart.forEach(i=>{
+        lines.push(`${i.name} x${i.qty} @ ${i.price.toFixed(2)} = ${(i.price*i.qty).toFixed(2)} PLN`);
+      });
+      lines.push("");
+      lines.push(`Rabat: ${t.discount.toFixed(2)} PLN`);
+      lines.push(`Lojalność: ${t.loyalty.toFixed(2)} PLN`);
+      lines.push(`Netto: ${t.net.toFixed(2)} PLN`);
+      lines.push(`VAT ${state.taxPct}%: ${t.vat.toFixed(2)} PLN`);
+      lines.push(`Brutto: ${t.gross.toFixed(2)} PLN`);
+      lines.push("");
+      lines.push(`Płatność: gotówka ${(state.pay.cash||0).toFixed(2)} | karta ${(state.pay.card||0).toFixed(2)} | blik ${(state.pay.blik||0).toFixed(2)}`);
+      lines.push(`Klient: ${state.customer.name||"-"} ${state.customer.phone?("("+state.customer.phone+")"):""}`);
+      lines.push("================");
+      return lines.join("\n");
+    }
+
+    // --- Elementy UI i zdarzenia ---
+    renderProducts(PRODUCTS);
+    renderCart();
+
+    document.getElementById("search").addEventListener("input", (e)=>{
+      const q = e.target.value.toLowerCase().trim();
+      const f = PRODUCTS.filter(p=> p.name.toLowerCase().includes(q));
+      renderProducts(f);
+    });
+
+    document.getElementById("clearCart").onclick = ()=>{
+      state.cart = []; renderCart();
+    };
+
+    document.getElementById("discount").addEventListener("change", (e)=>{
+      state.discountPct = Number(e.target.value||0);
+      renderCart();
+    });
+
+    document.getElementById("tax").addEventListener("change", (e)=>{
+      state.taxPct = Number(e.target.value||23);
+      renderCart();
+    });
+
+    document.getElementById("payCash").addEventListener("change", (e)=> state.pay.cash = Number(e.target.value||0));
+    document.getElementById("payCard").addEventListener("change", (e)=> state.pay.card = Number(e.target.value||0));
+    document.getElementById("payBlik").addEventListener("change", (e)=> state.pay.blik = Number(e.target.value||0));
+    document.getElementById("customerName").addEventListener("change", (e)=> state.customer.name = e.target.value||"");
+    document.getElementById("customerPhone").addEventListener("change", (e)=> state.customer.phone = e.target.value||"");
+    document.getElementById("loyalty").addEventListener("change", (e)=> { state.loyalty = Number(e.target.value||0); renderCart(); });
+
+    // PIN modal
+    const pinModal = document.getElementById("pinModal");
+    document.getElementById("pin").onclick = ()=> { pinModal.style.display="flex"; document.getElementById("pinInput").value=""; };
+    document.getElementById("pinCancel").onclick = ()=> { pinModal.style.display="none"; };
+    document.getElementById("pinOk").onclick = ()=>{
+      const val = (document.getElementById("pinInput").value||"").trim();
+      const CORRECT = "1234"; // zmień PIN tutaj
+      if(val === CORRECT){
+        state.pinOk = true;
+        pinModal.style.display="none";
+        toast("PIN poprawny. Autoryzacja aktywna.");
+      } else {
+        toast("Niepoprawny PIN.");
+      }
+    };
+
+    // Checkout
+    const doneModal = document.getElementById("doneModal");
+    document.getElementById("checkout").onclick = ()=>{
+      if(!state.pinOk) return toast("Wymagana autoryzacja PIN.");
+      if(state.cart.length===0) return toast("Koszyk jest pusty.");
+      const t = calcTotals();
+      const paid = (state.pay.cash||0) + (state.pay.card||0) + (state.pay.blik||0);
+      if( Number(paid.toFixed(2)) !== Number(t.gross.toFixed(2)) ) {
+        return toast("Suma płatności musi równać się kwocie brutto.");
+      }
+      // reset autoryzacji po transakcji
+      state.pinOk = false;
+      saveLocal();
+      doneModal.style.display="flex";
+      if(tg){
+        tg.MainButton.show();
+        tg.MainButton.onClick(()=>{
+          tg.sendData(JSON.stringify(buildOrderPayload()));
+          tg.close();
+        });
+      }
+    };
+    document.getElementById("closeDone").onclick = ()=> { doneModal.style.display="none"; if(tg) tg.MainButton.hide(); };
+    document.getElementById("sendToBot").onclick = ()=>{
+      if(!tg) return toast("Uruchom jako Telegram WebApp, aby wysyłać dane do bota.");
+      tg.sendData(JSON.stringify(buildOrderPayload()));
+      tg.close();
+    };
+
+    document.getElementById("print").onclick = ()=>{
+      const txt = buildReceipt();
+      navigator.clipboard?.writeText(txt).then(()=> toast("Paragon skopiowany do schowka."));
+    };
+
+    document.getElementById("saveState").onclick = saveLocal;
+    document.getElementById("loadState").onclick = loadLocal;
+
+    function buildOrderPayload(){
+      const totals = calcTotals();
+      return {
+        type:"sale",
+        at: new Date().toISOString(),
+        cart: state.cart,
+        totals: totals,
+        taxPct: state.taxPct,
+        pay: state.pay,
+        customer: state.customer,
+        loyalty: state.loyalty
+      };
+    }
+
+    // Zamknij modale po kliknięciu tła
+    [pinModal, doneModal].forEach(m=>{
+      m.addEventListener("click", (e)=> { if(e.target===m) m.style.display="none"; });
+    });
+  </script>
+</body>
+  </html>
