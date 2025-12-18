@@ -1,216 +1,421 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>POS WebApp (PL)</title>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>POS WebApp • Sklep</title>
   <style>
-    :root { --bg:#101419; --fg:#e8eef5; --muted:#9fb0c7; --accent:#3fb950; --danger:#f85149; }
-    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg); color:var(--fg); }
-    header { padding:12px; border-bottom:1px solid #202636; display:flex; gap:10px; align-items:center; }
-    h1 { font-size:16px; margin:0; }
-    .wrap { display:grid; grid-template-columns:1fr; gap:12px; padding:12px; }
-    @media(min-width:900px){ .wrap{ grid-template-columns: 1fr 1fr; } }
-    .card { background:#121821; border:1px solid #202636; border-radius:10px; padding:12px; }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .grid { display:grid; grid-template-columns: repeat(2,1fr); gap:8px; }
-    .btn { border:1px solid #2a3344; background:#17202b; color:var(--fg); padding:10px 12px; border-radius:8px; cursor:pointer; }
-    .btn.acc { background:var(--accent); border-color:var(--accent); color:#07130a; font-weight:600; }
-    .btn.dan { background:var(--danger); border-color:var(--danger); color:#300; font-weight:600; }
-    .btn.ghost { background:transparent; }
-    .input, select { width:100%; padding:10px 12px; border-radius:8px; border:1px solid #2a3344; background:#0e131a; color:var(--fg); }
-    .list { display:flex; flex-direction:column; gap:8px; }
-    .item { display:flex; justify-content:space-between; align-items:center; padding:8px; border:1px dashed #273043; border-radius:8px; }
-    .muted { color:var(--muted); font-size:12px; }
-    .price { font-weight:600; }
-    .totals { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
-    footer { padding:12px; border-top:1px solid #202636; display:flex; gap:8px; }
+    :root{
+      --bg:#0f131a; --fg:#e8eef5; --muted:#9fb0c7; --card:#131a24; --border:#253042;
+      --accent:#3fb950; --danger:#f85149; --warn:#f2cc60; --ok:#2ecc71;
+    }
+    [data-theme="light"]{
+      --bg:#f7f9fc; --fg:#17212b; --muted:#53657b; --card:#ffffff; --border:#e3e8ef;
+      --accent:#2f7d32; --danger:#c62828; --warn:#b58500; --ok:#2f7d32;
+    }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto; background:var(--bg); color:var(--fg);}
+    header{display:flex; align-items:center; justify-content:space-between; padding:12px; border-bottom:1px solid var(--border);}
+    .title{display:flex; align-items:center; gap:10px;}
+    .tabs{display:flex; overflow-x:auto; gap:6px; padding:8px; border-bottom:1px solid var(--border);}
+    .tab{padding:10px 12px; border-radius:10px; background:var(--card); border:1px solid var(--border); cursor:pointer; white-space:nowrap;}
+    .tab.active{border-color:var(--accent); box-shadow:0 0 0 2px rgba(63,185,80,.2)}
+    .wrap{padding:12px; display:grid; gap:12px;}
+    .grid2{display:grid; grid-template-columns:1fr; gap:12px;}
+    @media(min-width:900px){ .grid2{ grid-template-columns: 1.2fr .8fr; } }
+    .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px;}
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+    .col{display:flex; flex-direction:column; gap:8px;}
+    .btn{border:1px solid var(--border); background:#18202b; color:var(--fg); padding:10px 12px; border-radius:10px; cursor:pointer; transition:.2s}
+    .btn:hover{filter:brightness(1.1)}
+    .btn.acc{background:var(--accent); border-color:var(--accent); color:#07130a; font-weight:600;}
+    .btn.dan{background:var(--danger); border-color:var(--danger); color:#fff; font-weight:600;}
+    .btn.warn{background:var(--warn); border-color:var(--warn); color:#2b1c00;}
+    .btn.ghost{background:transparent;}
+    .input, select, textarea{width:100%; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:#0d1219; color:var(--fg);}
+    [data-theme="light"] .input, [data-theme="light"] select, [data-theme="light"] textarea{background:#fff; color:#17212b;}
+    .list{display:flex; flex-direction:column; gap:8px;}
+    .item{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:8px; border:1px dashed var(--border); border-radius:10px;}
+    .muted{color:var(--muted); font-size:12px;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;}
+    .badge{font-size:12px; padding:2px 6px; border-radius:8px; border:1px solid var(--border); background:#0d1219;}
+    .price{font-weight:600}
+    .pill{padding:6px 10px; border-radius:16px; background:#0d1219; border:1px solid var(--border);}
+    .tag{padding:4px 8px; border-radius:8px; border:1px solid var(--border);}
     /* Modal */
-    .modal { position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.6); }
-    .modal .box { width:90%; max-width:480px; background:#0f1520; border:1px solid #273043; border-radius:12px; padding:16px; }
-    .right { text-align:right; }
+    .modal{position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); z-index:50;}
+    .box{width:90%; max-width:560px; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px;}
+    .right{text-align:right}
+    .section-title{margin:0 0 8px 0; font-size:16px; font-weight:600;}
   </style>
 </head>
 <body>
   <header>
-    <h1>POS • Telegram WebApp</h1>
-    <span class="muted">PL | Offline-ready</span>
+    <div class="title">
+      <div class="pill">POS • Telegram WebApp</div>
+      <div class="muted" id="shopNameLabel">Sklep</div>
+    </div>
+    <div class="row">
+      <button class="btn" id="toggleTheme">Motyw</button>
+      <button class="btn" id="openCash">Otwórz kasę</button>
+      <button class="btn" id="closeCash">Zamknij kasę</button>
+    </div>
   </header>
 
-  <div class="wrap">
-    <section class="card">
-      <h2 style="margin-top:0">Produkty</h2>
-      <div class="grid" id="products"></div>
-      <div class="row" style="margin-top:8px">
-        <input id="search" class="input" placeholder="Szukaj produktu…" />
-        <button class="btn" id="clearCart">Wyczyść koszyk</button>
-      </div>
-    </section>
+  <nav class="tabs" id="tabs">
+    <div class="tab active" data-tab="sale">Sprzedaż</div>
+    <div class="tab" data-tab="orders">Zamówienia</div>
+    <div class="tab" data-tab="customers">Klienci</div>
+    <div class="tab" data-tab="products">Produkty</div>
+    <div class="tab" data-tab="suppliers">Dostawcy</div>
+    <div class="tab" data-tab="history">Historia</div>
+    <div class="tab" data-tab="settings">Ustawienia</div>
+  </nav>
 
-    <section class="card">
-      <h2 style="margin-top:0">Koszyk</h2>
-      <div class="list" id="cart"></div>
-      <div class="row" style="margin-top:8px">
-        <input id="discount" class="input" type="number" min="0" max="100" step="1" placeholder="Rabat (%)" />
-        <select id="tax" class="input">
-          <option value="0">VAT 0%</option>
-          <option value="5">VAT 5%</option>
-          <option value="8">VAT 8%</option>
-          <option value="23" selected>VAT 23%</option>
-        </select>
+  <main class="wrap">
+    <!-- Sprzedaż -->
+    <section class="grid2 view" id="view-sale">
+      <div class="card">
+        <h3 class="section-title">Produkty</h3>
+        <div class="row">
+          <input id="searchProd" class="input" placeholder="Szukaj…"/>
+          <select id="filterCat" class="input"><option value="">Wszystkie kategorie</option></select>
+        </div>
+        <div class="list" id="prodList"></div>
       </div>
-
-      <div class="card" style="margin-top:8px">
-        <div class="totals mono">
-          <div>Netto</div><div class="right" id="net">0,00</div>
-          <div>VAT</div><div class="right" id="vat">0,00</div>
-          <div>Brutto</div><div class="right" id="gross">0,00</div>
+      <div class="card">
+        <h3 class="section-title">Koszyk</h3>
+        <div id="cartList" class="list"></div>
+        <div class="card">
+          <div class="list mono">
+            <div class="row"><span>Cena przed rabatem</span><span id="beforeDisc" class="right">0,00 PLN</span></div>
+            <div class="row"><span>Łączny rabat</span><span id="discTotal" class="right">0,00 PLN</span></div>
+            <div class="row"><span>Oszczędzasz</span><span id="saveTotal" class="right">0,00 PLN</span></div>
+            <div class="row"><span>Netto</span><span id="net" class="right">0,00 PLN</span></div>
+            <div class="row"><span>VAT</span><span id="vat" class="right">0,00 PLN</span></div>
+            <div class="row"><span>Brutto</span><span id="gross" class="right">0,00 PLN</span></div>
+          </div>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <input id="cartDiscPct" class="input" type="number" min="0" max="100" step="1" placeholder="Rabat %"/>
+          <input id="cartDiscAmt" class="input" type="number" min="0" step="0.01" placeholder="Rabat kwotowy (PLN)"/>
+          <input id="loyaltyUse" class="input" type="number" min="0" step="1" placeholder="Wykorzystaj punkty"/>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn acc" id="btnCheckout">Zakończ</button>
+          <button class="btn" id="btnSaveState">Zapisz</button>
+          <button class="btn" id="btnLoadState">Wczytaj</button>
+          <button class="btn warn" id="btnForce">Wymuś sprzedaż (PIN 1312)</button>
         </div>
       </div>
+    </section>
 
-      <h3>Podział płatności</h3>
+    <!-- Zamówienia -->
+    <section class="view card" id="view-orders" style="display:none">
+      <h3 class="section-title">Zamówienia „na jutro” / telefon</h3>
       <div class="row">
-        <input id="payCash" class="input" type="number" step="0.01" placeholder="Gotówka (PLN)" />
-        <input id="payCard" class="input" type="number" step="0.01" placeholder="Karta (PLN)" />
-        <input id="payBlik" class="input" type="number" step="0.01" placeholder="Blik (PLN)" />
+        <input id="ordCustomer" class="input" placeholder="Klient (imię/nazwa)"/>
+        <input id="ordPhone" class="input" placeholder="Telefon"/>
       </div>
-      <div class="muted">Suma płatności musi równać się kwocie brutto.</div>
-
-      <div class="row" style="margin-top:10px">
-        <button class="btn acc" id="checkout">Zatwierdź sprzedaż</button>
-        <button class="btn ghost" id="print">Paragon (kopiuj)</button>
+      <div class="row">
+        <input id="ordDate" class="input" type="date"/>
+        <select id="ordDeliveryZone" class="input">
+          <option value="Centrum">Kraków Centrum (+20)</option>
+          <option value="Nowa Huta">Nowa Huta (+25)</option>
+          <option value="Południe">Południe (+30)</option>
+          <option value="Inne">Inne (+35)</option>
+        </select>
       </div>
+      <div class="row">
+        <input id="ordAddr" class="input" placeholder="Adres dostawy"/>
+        <input id="ordEta" class="input" placeholder="ETA (np. 12:00–14:00)"/>
+      </div>
+      <div class="row">
+        <textarea id="ordNotes" class="input" placeholder="Uwagi do zamówienia"></textarea>
+      </div>
+      <div class="row">
+        <button class="btn acc" id="btnCreateOrder">Utwórz zamówienie (PPO)</button>
+      </div>
+      <div class="list" id="orderList" style="margin-top:10px"></div>
     </section>
 
-    <section class="card">
-      <h2 style="margin-top:0">Klient i lojalność</h2>
-      <div class="list">
-        <input id="customerName" class="input" placeholder="Imię i nazwisko / nazwa firmy" />
-        <input id="customerPhone" class="input" placeholder="Telefon (opcjonalnie)" />
-        <input id="loyalty" class="input" type="number" min="0" step="1" placeholder="Punkty lojalnościowe (do użycia)" />
+    <!-- Klienci -->
+    <section class="view card" id="view-customers" style="display:none">
+      <h3 class="section-title">Klienci</h3>
+      <div class="row">
+        <input id="custName" class="input" placeholder="Imię/nazwa firmy"/>
+        <input id="custPhone" class="input" placeholder="Telefon"/>
+        <input id="custPoints" class="input" type="number" min="0" step="1" placeholder="Punkty lojalnościowe"/>
+        <button class="btn acc" id="btnAddCust">Dodaj/Edytuj</button>
       </div>
-      <div class="muted">Punkty lojalnościowe odejmują 1 PLN za punkt (maks. do kwoty brutto).</div>
+      <div class="list" id="custList" style="margin-top:10px"></div>
     </section>
-  </div>
 
-  <footer>
-    <button class="btn" id="pin">PIN autoryzacja</button>
-    <button class="btn" id="saveState">Zapisz stan</button>
-    <button class="btn" id="loadState">Wczytaj stan</button>
-    <span class="muted">• v1.0</span>
-  </footer>
+    <!-- Produkty -->
+    <section class="view card" id="view-products" style="display:none">
+      <h3 class="section-title">Produkty i kategorie</h3>
+      <div class="row">
+        <input id="prodName" class="input" placeholder="Nazwa produktu"/>
+        <input id="prodCat" class="input" placeholder="Kategoria"/>
+      </div>
+      <div class="row">
+        <input id="prodUnit" class="input" placeholder="Jednostka (szt/kg)"/>
+        <input id="prodBuy" class="input" type="number" step="0.01" placeholder="Cena zakupu (PLN)"/>
+        <input id="prodSell" class="input" type="number" step="0.01" placeholder="Cena sprzedaży (PLN)"/>
+      </div>
+      <div class="row">
+        <input id="prodStock" class="input" type="number" min="0" step="1" placeholder="Stan magazynowy"/>
+        <input id="prodImg" class="input" placeholder="URL zdjęcia (opcjonalnie)"/>
+        <button class="btn acc" id="btnAddProd">Dodaj/Edytuj produkt</button>
+      </div>
+      <div class="list" id="prodAdminList" style="margin-top:10px"></div>
+    </section>
 
-  <!-- Modale -->
-  <div class="modal" id="pinModal">
+    <!-- Dostawcy -->
+    <section class="view card" id="view-suppliers" style="display:none">
+      <h3 class="section-title">Dostawcy</h3>
+      <div class="row">
+        <input id="supName" class="input" placeholder="Nazwa dostawcy"/>
+        <input id="supPhone" class="input" placeholder="Telefon"/>
+        <input id="supAddr" class="input" placeholder="Adres"/>
+        <button class="btn acc" id="btnAddSup">Dodaj/Edytuj</button>
+      </div>
+      <div class="list" id="supList" style="margin-top:10px"></div>
+    </section>
+
+    <!-- Historia -->
+    <section class="view card" id="view-history" style="display:none">
+      <h3 class="section-title">Historia sprzedaży i raport marży</h3>
+      <div class="row">
+        <input id="histFrom" class="input" type="date"/>
+        <input id="histTo" class="input" type="date"/>
+        <input id="histProd" class="input" placeholder="Filtr: produkt"/>
+        <input id="histSup" class="input" placeholder="Filtr: dostawca"/>
+        <button class="btn" id="btnFilterHist">Filtruj</button>
+      </div>
+      <div class="list" id="histList" style="margin-top:10px"></div>
+      <div class="card mono" id="profitBox" style="margin-top:10px"></div>
+    </section>
+
+    <!-- Ustawienia -->
+    <section class="view card" id="view-settings" style="display:none">
+      <h3 class="section-title">Ustawienia POS</h3>
+      <div class="row">
+        <input id="setShop" class="input" placeholder="Nazwa sklepu"/>
+        <input id="setVat" class="input" type="number" min="0" max="99" step="1" placeholder="Stawka VAT (%)"/>
+        <input id="setAccent" class="input" placeholder="Kolor akcentu (np. #3fb950)"/>
+      </div>
+      <div class="row">
+        <input id="setCompany" class="input" placeholder="Dane firmy (NIP, adres)"/>
+      </div>
+      <div class="row">
+        <input id="pinForce" class="input" placeholder="PIN wymuszenia sprzedaży (domyślnie 1312)"/>
+        <input id="pinDelivery" class="input" placeholder="PIN przyjęcia dostaw"/>
+        <input id="pinCash" class="input" placeholder="PIN kasy (otw/zamk)"/>
+      </div>
+      <div class="row">
+        <button class="btn acc" id="btnSaveSettings">Zapisz ustawienia</button>
+        <button class="btn dan" id="btnResetAll">Reset danych (ostrożnie)</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal płatności -->
+  <div class="modal" id="payModal">
     <div class="box">
-      <h3>Wprowadź PIN kasjera</h3>
-      <input id="pinInput" class="input mono" type="password" inputmode="numeric" placeholder="****" />
-      <div class="row" style="margin-top:10px">
-        <button class="btn acc" id="pinOk">OK</button>
-        <button class="btn dan" id="pinCancel">Anuluj</button>
+      <h3 class="section-title">Płatność</h3>
+      <div class="row">
+        <div class="badge">Definiowalne metody: gotówka, karta, BLIK, przelew, punkty</div>
       </div>
-      <div class="muted" style="margin-top:8px">Domyślny PIN: 1234 (zmień w kodzie).</div>
+      <div class="row">
+        <input id="payCash" class="input" type="number" step="0.01" placeholder="Gotówka (PLN)"/>
+        <input id="payCard" class="input" type="number" step="0.01" placeholder="Karta (PLN)"/>
+      </div>
+      <div class="row">
+        <input id="payBlik" class="input" type="number" step="0.01" placeholder="BLIK (PLN)"/>
+        <input id="payBank" class="input" type="number" step="0.01" placeholder="Przelew (PLN)"/>
+      </div>
+      <div class="row">
+        <input id="payPoints" class="input" type="number" step="1" placeholder="Punkty (1 pkt = 1 PLN)"/>
+      </div>
+      <div class="row mono">
+        <div>Razem do zapłaty: <span id="payDue">0,00</span> PLN</div>
+        <div>Zapłacono: <span id="paySum">0,00</span> PLN</div>
+        <div>Reszta: <span id="payChange">0,00</span> PLN</div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn acc" id="payOk">Zatwierdź</button>
+        <button class="btn" id="payCancel">Anuluj</button>
+      </div>
     </div>
   </div>
 
-  <div class="modal" id="doneModal">
+  <!-- Modal PIN (uniwersalny) -->
+  <div class="modal" id="pinModal">
     <div class="box">
-      <h3>Sprzedaż zakończona</h3>
-      <p>Transakcja została zapisana. Możesz wysłać dane do bota lub skopiować paragon.</p>
-      <div class="row">
-        <button class="btn acc" id="sendToBot">Wyślij do Telegram</button>
-        <button class="btn" id="closeDone">Zamknij</button>
+      <h3 class="section-title" id="pinTitle">Wprowadź PIN</h3>
+      <input id="pinInput" class="input mono" type="password" inputmode="numeric" placeholder="****"/>
+      <div class="row" style="margin-top:8px">
+        <button class="btn acc" id="pinOk">OK</button>
+        <button class="btn" id="pinCancel">Anuluj</button>
       </div>
+      <div class="muted" id="pinHint"></div>
     </div>
   </div>
 
   <script>
-    // --- Telegram WebApp init ---
+    // Telegram WebApp init
     const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-      tg.setHeaderColor("#101419");
-      tg.setBackgroundColor("#101419");
-      tg.MainButton.setText("Zamknij i wyślij");
-      tg.MainButton.hide();
-    }
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor("#0f131a"); tg.setBackgroundColor("#0f131a"); }
 
-    // --- Dane produktów (demo) ---
-    const PRODUCTS = [
-      { id:"p1", name:"Chleb", price:5.99 },
-      { id:"p2", name:"Mleko 2%", price:3.49 },
-      { id:"p3", name:"Masło", price:8.99 },
-      { id:"p4", name:"Ser żółty", price:6.75 },
-      { id:"p5", name:"Kawa 250g", price:24.90 },
-      { id:"p6", name:"Herbata 100 torebek", price:15.50 },
-      { id:"p7", name:"Jabłka 1kg", price:4.20 },
-      { id:"p8", name:"Woda 1.5L", price:2.10 }
-    ];
-
-    // --- Stan aplikacji ---
-    const state = {
-      cart: [], // {id,name,price,qty}
-      discountPct: 0,
-      taxPct: 23,
-      pay: { cash:0, card:0, blik:0 },
-      customer: { name:"", phone:"" },
-      loyalty: 0,
-      pinOk: false
+    // Persistent store
+    const store = {
+      get(k, def){ try{ const v = JSON.parse(localStorage.getItem(k)); return v ?? def; }catch{ return def; } },
+      set(k, v){ localStorage.setItem(k, JSON.stringify(v)); }
     };
 
-    // --- Utils ---
-    const fmt = (n)=> (n||0).toFixed(2).replace(".", ",");
-    function calcTotals(){
-      const sum = state.cart.reduce((s,i)=> s + i.price*i.qty, 0);
-      const discount = sum * (state.discountPct/100);
-      const afterDisc = Math.max(0, sum - discount);
-      const loyalty = Math.min(state.loyalty, afterDisc); // 1 pkt = 1 PLN
-      const net = Math.max(0, afterDisc - loyalty);
-      const vat = net * (state.taxPct/100);
-      const gross = net + vat;
-      return { sum, discount, loyalty, net, vat, gross };
-    }
+    // Default data
+    const defaults = {
+      settings: {
+        shopName: "Sklep Piotra",
+        vat: 23,
+        accent: "#3fb950",
+        company: "NIP 0000000000, Zabierzów",
+        pins: { force:"1312", delivery:"5555", cash:"7777" },
+        theme: "dark"
+      },
+      products: [
+        {id:"p1", name:"Chleb", cat:"Spożywcze", unit:"szt", buy:3.20, sell:5.99, stock:20, img:""},
+        {id:"p2", name:"Mleko 2%", cat:"Nabiał", unit:"szt", buy:2.10, sell:3.49, stock:15, img:""},
+        {id:"p3", name:"Masło", cat:"Nabiał", unit:"szt", buy:6.90, sell:8.99, stock:10, img:""}
+      ],
+      suppliers: [
+        {id:"s1", name:"Dostawca A", phone:"", addr:""}
+      ],
+      customers: [],
+      orders: [],
+      sales: [],
+      cash: { open:false, openedAt:null, closedAt:null, openingNote:"", closingNote:"", movements:[] }
+    };
 
-    function renderProducts(list){
-      const wrap = document.getElementById("products");
+    const state = {
+      settings: store.get("pos_settings", defaults.settings),
+      products: store.get("pos_products", defaults.products),
+      suppliers: store.get("pos_suppliers", defaults.suppliers),
+      customers: store.get("pos_customers", defaults.customers),
+      orders: store.get("pos_orders", defaults.orders),
+      sales: store.get("pos_sales", defaults.sales),
+      cash: store.get("pos_cash", defaults.cash),
+      cart: [],
+      promotions: { twoPlusOne:true, discPct:0, discAmt:0 },
+      loyaltyUse:0,
+      pinContext:null
+    };
+
+    // Theme & accent
+    document.body.dataset.theme = state.settings.theme==="light" ? "light" : "dark";
+    document.getElementById("shopNameLabel").textContent = state.settings.shopName;
+    document.documentElement.style.setProperty("--accent", state.settings.accent);
+
+    // Helpers
+    const PLN = (n)=> (n||0).toFixed(2).replace(".", ",");
+    const toNum = (v)=> Number(v||0);
+    const findProd = (id)=> state.products.find(p=> p.id===id);
+    const uid = (p="id")=> p + Math.random().toString(36).slice(2,8);
+
+    // Tabs
+    document.querySelectorAll(".tab").forEach(t=>{
+      t.addEventListener("click", ()=>{
+        document.querySelectorAll(".tab").forEach(x=> x.classList.remove("active"));
+        t.classList.add("active");
+        const which = t.dataset.tab;
+        document.querySelectorAll(".view").forEach(v=> v.style.display="none");
+        document.getElementById("view-"+which).style.display = which==="sale" ? "grid" : "block";
+        if(which==="sale"){ renderSale(); } 
+        if(which==="orders"){ renderOrders(); }
+        if(which==="customers"){ renderCustomers(); }
+        if(which==="products"){ renderProductsAdmin(); }
+        if(which==="suppliers"){ renderSuppliers(); }
+        if(which==="history"){ renderHistory(); }
+        if(which==="settings"){ renderSettings(); }
+      });
+    });
+
+    // Render Sale
+    function renderSale(){
+      // categories
+      const cats = Array.from(new Set(state.products.map(p=> p.cat))).sort();
+      const catSel = document.getElementById("filterCat");
+      catSel.innerHTML = '<option value="">Wszystkie kategorie</option>' + cats.map(c=> `<option>${c}</option>`).join("");
+      // product list
+      const q = document.getElementById("searchProd").value?.toLowerCase() || "";
+      const cat = catSel.value || "";
+      const list = state.products.filter(p=>
+        (q==="" || p.name.toLowerCase().includes(q)) &&
+        (cat==="" || p.cat===cat)
+      );
+      const wrap = document.getElementById("prodList");
       wrap.innerHTML = "";
       list.forEach(p=>{
-        const b = document.createElement("button");
-        b.className = "btn";
-        b.textContent = `${p.name} • ${fmt(p.price)} PLN`;
-        b.onclick = ()=> addToCart(p);
-        wrap.appendChild(b);
+        const div = document.createElement("div");
+        div.className="item";
+        const stockBadge = p.stock<=0 ? `<span class="badge" style="border-color:var(--danger);color:#fff;background:var(--danger)">Brak</span>` :
+                           p.stock<5 ? `<span class="badge" style="border-color:var(--warn);color:#2b1c00;background:var(--warn)">Mało: ${p.stock}</span>` :
+                           `<span class="badge">Stan: ${p.stock}</span>`;
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${p.name}</strong> <span class="muted">(${p.cat})</span></div>
+            <div class="muted">Cena: <span class="price">${PLN(p.sell)} PLN</span> • Jedn: ${p.unit}</div>
+            <div class="muted">Przed rabatem: ${PLN(p.sell)} PLN</div>
+            <div>${stockBadge}</div>
+          </div>
+          <div class="row">
+            <button class="btn" data-id="${p.id}" onclick="addToCart('${p.id}')">Dodaj</button>
+          </div>
+        `;
+        wrap.appendChild(div);
       });
+
+      renderCart();
     }
 
-    function addToCart(p){
-      const ex = state.cart.find(i=> i.id===p.id);
-      if(ex){ ex.qty += 1; } else { state.cart.push({ id:p.id, name:p.name, price:p.price, qty:1 }); }
-      renderCart();
-    }
-    function removeFromCart(id){
-      const i = state.cart.findIndex(x=> x.id===id);
-      if(i>=0){ state.cart.splice(i,1); renderCart(); }
-    }
-    function changeQty(id,delta){
-      const ex = state.cart.find(i=> i.id===id);
-      if(!ex) return;
-      ex.qty = Math.max(1, ex.qty + delta);
-      renderCart();
+    // Cart calc (promotions, discounts, VAT, loyalty)
+    function calcCartTotals(){
+      let sum = 0;
+      let raw = 0;
+      // promotions: 2+1 gratis per product
+      const promoDetails = [];
+      state.cart.forEach(i=>{
+        raw += i.price*i.qty;
+        let chargeQty = i.qty;
+        if(state.promotions.twoPlusOne){
+          const free = Math.floor(i.qty / 3); // buy 3 pay 2
+          chargeQty = i.qty - free;
+          if(free>0) promoDetails.push(`${i.name}: ${free} gratis`);
+        }
+        sum += i.price*chargeQty;
+      });
+      const discPctAmt = sum * (toNum(state.promotions.discPct)/100);
+      const discAmt = toNum(state.promotions.discAmt);
+      const discount = discPctAmt + discAmt;
+      const afterDisc = Math.max(0, sum - discount);
+      const loyaltyUse = Math.min(toNum(state.loyaltyUse), afterDisc);
+      const net = Math.max(0, afterDisc - loyaltyUse);
+      const vat = net * (toNum(state.settings.vat)/100);
+      const gross = net + vat;
+      return { raw, sum, discount, afterDisc, loyaltyUse, net, vat, gross, promoDetails };
     }
 
     function renderCart(){
-      const c = document.getElementById("cart");
+      const c = document.getElementById("cartList");
       c.innerHTML = "";
       state.cart.forEach(i=>{
         const row = document.createElement("div");
-        row.className = "item";
+        row.className="item";
         row.innerHTML = `
-          <div>
-            <div>${i.name} <span class="muted">x${i.qty}</span></div>
-            <div class="muted mono">${fmt(i.price)} PLN/szt</div>
+          <div class="col" style="flex:1">
+            <div><strong>${i.name}</strong> <span class="muted">x${i.qty}</span></div>
+            <div class="muted mono">${PLN(i.price)} PLN/szt</div>
           </div>
           <div class="row">
             <button class="btn" onclick="changeQty('${i.id}',-1)">-</button>
@@ -221,164 +426,442 @@
         c.appendChild(row);
       });
 
-      // totals
-      const totals = calcTotals();
-      document.getElementById("net").textContent = fmt(totals.net);
-      document.getElementById("vat").textContent = fmt(totals.vat);
-      document.getElementById("gross").textContent = fmt(totals.gross);
+      const t = calcCartTotals();
+      document.getElementById("beforeDisc").textContent = PLN(t.raw) + " PLN";
+      document.getElementById("discTotal").textContent = PLN(t.discount) + " PLN";
+      document.getElementById("saveTotal").textContent = PLN(t.raw - t.sum) + " PLN";
+      document.getElementById("net").textContent = PLN(t.net) + " PLN";
+      document.getElementById("vat").textContent = PLN(t.vat) + " PLN";
+      document.getElementById("gross").textContent = PLN(t.gross) + " PLN";
     }
 
-    function saveLocal(){
-      localStorage.setItem("pos_state", JSON.stringify(state));
-      toast("Zapisano stan.");
-    }
-    function loadLocal(){
-      const raw = localStorage.getItem("pos_state");
-      if(!raw) return toast("Brak zapisanego stanu.");
-      const loaded = JSON.parse(raw);
-      Object.assign(state, loaded);
-      // rebind simple inputs after load
-      document.getElementById("discount").value = state.discountPct;
-      document.getElementById("tax").value = state.taxPct;
-      document.getElementById("payCash").value = state.pay.cash || "";
-      document.getElementById("payCard").value = state.pay.card || "";
-      document.getElementById("payBlik").value = state.pay.blik || "";
-      document.getElementById("customerName").value = state.customer.name || "";
-      document.getElementById("customerPhone").value = state.customer.phone || "";
-      document.getElementById("loyalty").value = state.loyalty || "";
+    // Cart operations
+    window.addToCart = (pid)=>{
+      const p = findProd(pid);
+      if(!p) return;
+      const ex = state.cart.find(x=> x.id===pid);
+      if(p.stock<=0) { return showPin("force", "Produkt brak w magazynie. Wymuś sprzedaż PIN-em.", ()=>{}); }
+      if(ex){
+        if(ex.qty < p.stock){ ex.qty += 1; }
+        else { return showPin("force", "Brak stanu. Wymuś sprzedaż PIN-em.", ()=>{ ex.qty += 1; renderCart(); }); }
+      }else{
+        state.cart.push({ id:p.id, name:p.name, price:p.sell, qty:1 });
+      }
       renderCart();
-      toast("Wczytano stan.");
-    }
+    };
+    window.changeQty = (pid,delta)=>{
+      const ex = state.cart.find(x=> x.id===pid); if(!ex) return;
+      const prod = findProd(pid);
+      const newQty = Math.max(1, ex.qty + delta);
+      if(newQty > prod.stock){
+        return showPin("force", "Brak stanu. Wymuś sprzedaż PIN-em.", ()=>{ ex.qty = newQty; renderCart(); });
+      }
+      ex.qty = newQty; renderCart();
+    };
+    window.removeFromCart = (pid)=>{
+      const i = state.cart.findIndex(x=> x.id===pid);
+      if(i>=0){ state.cart.splice(i,1); renderCart(); }
+    };
 
-    function toast(msg){
-      if(tg){ tg.showPopup({ title:"Informacja", message:msg, buttons:[{type:"ok"}] }); }
-      else { alert(msg); }
-    }
+    // Inputs
+    document.getElementById("searchProd").addEventListener("input", renderSale);
+    document.getElementById("filterCat").addEventListener("change", renderSale);
+    document.getElementById("cartDiscPct").addEventListener("change",(e)=>{ state.promotions.discPct = toNum(e.target.value); renderCart(); });
+    document.getElementById("cartDiscAmt").addEventListener("change",(e)=>{ state.promotions.discAmt = toNum(e.target.value); renderCart(); });
+    document.getElementById("loyaltyUse").addEventListener("change",(e)=>{ state.loyaltyUse = toNum(e.target.value); renderCart(); });
 
-    function buildReceipt(){
-      const t = calcTotals();
-      const lines = [];
-      lines.push("=== PARAGON ===");
-      lines.push(new Date().toLocaleString("pl-PL"));
-      lines.push("");
-      state.cart.forEach(i=>{
-        lines.push(`${i.name} x${i.qty} @ ${i.price.toFixed(2)} = ${(i.price*i.qty).toFixed(2)} PLN`);
+    // Save/load
+    document.getElementById("btnSaveState").addEventListener("click", ()=>{
+      store.set("pos_settings", state.settings);
+      store.set("pos_products", state.products);
+      store.set("pos_suppliers", state.suppliers);
+      store.set("pos_customers", state.customers);
+      store.set("pos_orders", state.orders);
+      store.set("pos_sales", state.sales);
+      store.set("pos_cash", state.cash);
+      alert("Zapisano stan.");
+    });
+    document.getElementById("btnLoadState").addEventListener("click", ()=>{
+      alert("Dane są ładowane przy starcie aplikacji – użyj 'Reset danych' w Ustawieniach aby zaczynać od zera.");
+    });
+
+    // Force sale button
+    document.getElementById("btnForce").addEventListener("click", ()=>{
+      showPin("force","Wymuszenie sprzedaży przy braku stanu", ()=> alert("Możesz teraz dodawać ponad stan."));
+    });
+
+    // Checkout flow
+    document.getElementById("btnCheckout").addEventListener("click", ()=>{
+      const t = calcCartTotals();
+      if(state.cart.length===0) return alert("Koszyk jest pusty.");
+      openPayModal(t.gross);
+    });
+
+    // Pay modal
+    function openPayModal(due){
+      const m = document.getElementById("payModal");
+      document.getElementById("payDue").textContent = PLN(due);
+      const inputs = ["payCash","payCard","payBlik","payBank","payPoints"];
+      inputs.forEach(id=>{
+        document.getElementById(id).value = "";
+        document.getElementById(id).addEventListener("input", updatePay);
       });
-      lines.push("");
-      lines.push(`Rabat: ${t.discount.toFixed(2)} PLN`);
-      lines.push(`Lojalność: ${t.loyalty.toFixed(2)} PLN`);
-      lines.push(`Netto: ${t.net.toFixed(2)} PLN`);
-      lines.push(`VAT ${state.taxPct}%: ${t.vat.toFixed(2)} PLN`);
-      lines.push(`Brutto: ${t.gross.toFixed(2)} PLN`);
-      lines.push("");
-      lines.push(`Płatność: gotówka ${(state.pay.cash||0).toFixed(2)} | karta ${(state.pay.card||0).toFixed(2)} | blik ${(state.pay.blik||0).toFixed(2)}`);
-      lines.push(`Klient: ${state.customer.name||"-"} ${state.customer.phone?("("+state.customer.phone+")"):""}`);
-      lines.push("================");
-      return lines.join("\n");
-    }
-
-    // --- Elementy UI i zdarzenia ---
-    renderProducts(PRODUCTS);
-    renderCart();
-
-    document.getElementById("search").addEventListener("input", (e)=>{
-      const q = e.target.value.toLowerCase().trim();
-      const f = PRODUCTS.filter(p=> p.name.toLowerCase().includes(q));
-      renderProducts(f);
-    });
-
-    document.getElementById("clearCart").onclick = ()=>{
-      state.cart = []; renderCart();
-    };
-
-    document.getElementById("discount").addEventListener("change", (e)=>{
-      state.discountPct = Number(e.target.value||0);
-      renderCart();
-    });
-
-    document.getElementById("tax").addEventListener("change", (e)=>{
-      state.taxPct = Number(e.target.value||23);
-      renderCart();
-    });
-
-    document.getElementById("payCash").addEventListener("change", (e)=> state.pay.cash = Number(e.target.value||0));
-    document.getElementById("payCard").addEventListener("change", (e)=> state.pay.card = Number(e.target.value||0));
-    document.getElementById("payBlik").addEventListener("change", (e)=> state.pay.blik = Number(e.target.value||0));
-    document.getElementById("customerName").addEventListener("change", (e)=> state.customer.name = e.target.value||"");
-    document.getElementById("customerPhone").addEventListener("change", (e)=> state.customer.phone = e.target.value||"");
-    document.getElementById("loyalty").addEventListener("change", (e)=> { state.loyalty = Number(e.target.value||0); renderCart(); });
-
-    // PIN modal
-    const pinModal = document.getElementById("pinModal");
-    document.getElementById("pin").onclick = ()=> { pinModal.style.display="flex"; document.getElementById("pinInput").value=""; };
-    document.getElementById("pinCancel").onclick = ()=> { pinModal.style.display="none"; };
-    document.getElementById("pinOk").onclick = ()=>{
-      const val = (document.getElementById("pinInput").value||"").trim();
-      const CORRECT = "1234"; // zmień PIN tutaj
-      if(val === CORRECT){
-        state.pinOk = true;
-        pinModal.style.display="none";
-        toast("PIN poprawny. Autoryzacja aktywna.");
-      } else {
-        toast("Niepoprawny PIN.");
+      function updatePay(){
+        const sum = inputs.reduce((s,id)=> s + toNum(document.getElementById(id).value), 0);
+        document.getElementById("paySum").textContent = PLN(sum);
+        document.getElementById("payChange").textContent = PLN(sum - due);
       }
-    };
-
-    // Checkout
-    const doneModal = document.getElementById("doneModal");
-    document.getElementById("checkout").onclick = ()=>{
-      if(!state.pinOk) return toast("Wymagana autoryzacja PIN.");
-      if(state.cart.length===0) return toast("Koszyk jest pusty.");
-      const t = calcTotals();
-      const paid = (state.pay.cash||0) + (state.pay.card||0) + (state.pay.blik||0);
-      if( Number(paid.toFixed(2)) !== Number(t.gross.toFixed(2)) ) {
-        return toast("Suma płatności musi równać się kwocie brutto.");
-      }
-      // reset autoryzacji po transakcji
-      state.pinOk = false;
-      saveLocal();
-      doneModal.style.display="flex";
-      if(tg){
-        tg.MainButton.show();
-        tg.MainButton.onClick(()=>{
-          tg.sendData(JSON.stringify(buildOrderPayload()));
-          tg.close();
+      m.style.display="flex";
+      document.getElementById("payCancel").onclick = ()=> m.style.display="none";
+      document.getElementById("payOk").onclick = ()=>{
+        const paid = inputs.reduce((s,id)=> s + toNum(document.getElementById(id).value), 0);
+        if( Number(paid.toFixed(2)) < Number(due.toFixed(2)) ) return alert("Za mało zapłacono.");
+        finalizeSale({
+          pay:{
+            cash:toNum(payCash.value), card:toNum(payCard.value),
+            blik:toNum(payBlik.value), bank:toNum(payBank.value),
+            points:toNum(payPoints.value)
+          }
         });
-      }
-    };
-    document.getElementById("closeDone").onclick = ()=> { doneModal.style.display="none"; if(tg) tg.MainButton.hide(); };
-    document.getElementById("sendToBot").onclick = ()=>{
-      if(!tg) return toast("Uruchom jako Telegram WebApp, aby wysyłać dane do bota.");
-      tg.sendData(JSON.stringify(buildOrderPayload()));
-      tg.close();
-    };
-
-    document.getElementById("print").onclick = ()=>{
-      const txt = buildReceipt();
-      navigator.clipboard?.writeText(txt).then(()=> toast("Paragon skopiowany do schowka."));
-    };
-
-    document.getElementById("saveState").onclick = saveLocal;
-    document.getElementById("loadState").onclick = loadLocal;
-
-    function buildOrderPayload(){
-      const totals = calcTotals();
-      return {
-        type:"sale",
-        at: new Date().toISOString(),
-        cart: state.cart,
-        totals: totals,
-        taxPct: state.taxPct,
-        pay: state.pay,
-        customer: state.customer,
-        loyalty: state.loyalty
+        m.style.display="none";
       };
     }
 
-    // Zamknij modale po kliknięciu tła
-    [pinModal, doneModal].forEach(m=>{
-      m.addEventListener("click", (e)=> { if(e.target===m) m.style.display="none"; });
+    function finalizeSale(extra){
+      // stock update
+      state.cart.forEach(i=>{
+        const p = findProd(i.id);
+        if(p){ p.stock = Math.max(0, p.stock - i.qty); }
+      });
+      // loyalty accumulation to selected customer (optional: first matching phone/name in cart note)
+      // For demo, add points equal to net
+      const totals = calcCartTotals();
+      if(state.customers.length>0){
+        // naive: first customer with points field used in UI "Klienci" selection could be added; here just add to all for demo
+      }
+      // record sale
+      const sale = {
+        id: uid("sale_"),
+        at: new Date().toISOString(),
+        items: JSON.parse(JSON.stringify(state.cart)),
+        totals,
+        vatPct: state.settings.vat,
+        extra: extra||{},
+      };
+      state.sales.push(sale);
+      // Telegram WebApp send
+      if(tg){
+        tg.sendData(JSON.stringify({ type:"sale", sale }));
+        tg.MainButton.setText("Zamknij");
+        tg.MainButton.show();
+        tg.MainButton.onClick(()=> tg.close());
+      }
+      // clear cart
+      state.cart = [];
+      renderCart();
+      alert("Sprzedaż zakończona.");
+    }
+
+    // PIN modal
+    function showPin(type, hint, onOk){
+      state.pinContext = { type, onOk };
+      const m = document.getElementById("pinModal");
+      document.getElementById("pinTitle").textContent = "Wprowadź PIN ("+type+")";
+      document.getElementById("pinHint").textContent = hint || "";
+      document.getElementById("pinInput").value = "";
+      m.style.display="flex";
+    }
+    document.getElementById("pinCancel").onclick = ()=> document.getElementById("pinModal").style.display="none";
+    document.getElementById("pinOk").onclick = ()=>{
+      const val = (document.getElementById("pinInput").value||"").trim();
+      const pins = state.settings.pins;
+      const ctx = state.pinContext?.type;
+      const ok = (ctx==="force" && val===pins.force) ||
+                 (ctx==="delivery" && val===pins.delivery) ||
+                 (ctx==="cash" && val===pins.cash);
+      if(ok){ document.getElementById("pinModal").style.display="none"; state.pinContext?.onOk?.(); }
+      else alert("Niepoprawny PIN.");
+    };
+
+    // Orders
+    document.getElementById("btnCreateOrder").addEventListener("click", ()=>{
+      const zone = ordDeliveryZone.value;
+      const fee = zone==="Centrum"?20: zone==="Nowa Huta"?25: zone==="Południe"?30:35;
+      const order = {
+        id: uid("ord_"),
+        at: new Date().toISOString(),
+        customer: { name: ordCustomer.value, phone: ordPhone.value },
+        date: ordDate.value,
+        delivery: { zone, fee, addr: ordAddr.value, eta: ordEta.value },
+        notes: ordNotes.value,
+        payOnPickup: true,
+        items: JSON.parse(JSON.stringify(state.cart)), // allow building from current cart
+      };
+      if(order.items.length===0) return alert("Dodaj produkty do koszyka przed utworzeniem zamówienia.");
+      state.orders.push(order);
+      alert("Zamówienie utworzone.");
+      renderOrders();
     });
+    function renderOrders(){
+      const wrap = document.getElementById("orderList");
+      wrap.innerHTML = "";
+      state.orders.forEach(o=>{
+        const div = document.createElement("div");
+        div.className="item";
+        const sum = o.items.reduce((s,i)=> s + i.price*i.qty, 0) + o.delivery.fee;
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${o.customer.name||"-"}</strong> <span class="muted">${o.customer.phone||""}</span></div>
+            <div class="muted">Dostawa: ${o.delivery.zone} (+${PLN(o.delivery.fee)} PLN) • ${o.delivery.addr} • ETA ${o.delivery.eta}</div>
+            <div class="muted">Data dostawy: ${o.date} • Suma: ${PLN(sum)} PLN • PPO</div>
+          </div>
+          <div class="row">
+            <button class="btn acc" onclick="fulfillOrder('${o.id}')">Zrealizuj</button>
+            <button class="btn dan" onclick="deleteOrder('${o.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.fulfillOrder = (id)=>{
+      const o = state.orders.find(x=> x.id===id);
+      if(!o) return;
+      // move items to cart
+      state.cart = JSON.parse(JSON.stringify(o.items));
+      renderCart();
+      alert("Załadowano zamówienie do koszyka. Zakończ płatność przez 'Zakończ'.");
+    };
+    window.deleteOrder = (id)=>{
+      const i = state.orders.findIndex(x=> x.id===id);
+      if(i>=0){ state.orders.splice(i,1); renderOrders(); }
+    };
+
+    // Customers
+    document.getElementById("btnAddCust").addEventListener("click", ()=>{
+      const name = custName.value.trim();
+      if(!name) return alert("Podaj nazwę klienta.");
+      const phone = custPhone.value.trim();
+      const pts = toNum(custPoints.value);
+      let c = state.customers.find(x=> x.name===name || (phone && x.phone===phone));
+      if(c){ c.phone = phone; c.points = pts; }
+      else { state.customers.push({ id: uid("c_"), name, phone, points:pts, history:[] }); }
+      alert("Klient zapisany.");
+      renderCustomers();
+    });
+    function renderCustomers(){
+      const wrap = document.getElementById("custList");
+      wrap.innerHTML = "";
+      state.customers.forEach(c=>{
+        const div = document.createElement("div");
+        div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${c.name}</strong> <span class="muted">${c.phone||""}</span></div>
+            <div class="muted">Punkty: ${c.points||0}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="attachCustomer('${c.id}')">Przypisz do koszyka</button>
+            <button class="btn dan" onclick="removeCustomer('${c.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.attachCustomer = (id)=>{
+      const c = state.customers.find(x=> x.id===id);
+      if(!c) return;
+      // Use loyalty points at checkout input
+      document.getElementById("loyaltyUse").value = c.points||0;
+      state.loyaltyUse = c.points||0;
+      renderCart();
+      alert("Klient przypisany. Punkty wczytane do koszyka.");
+    };
+    window.removeCustomer = (id)=>{
+      const i = state.customers.findIndex(x=> x.id===id);
+      if(i>=0){ state.customers.splice(i,1); renderCustomers(); }
+    };
+
+    // Products admin
+    document.getElementById("btnAddProd").addEventListener("click", ()=>{
+      const name = prodName.value.trim(); if(!name) return alert("Podaj nazwę produktu.");
+      const p = {
+        id: uid("p_"), name,
+        cat: prodCat.value.trim()||"Ogólne",
+        unit: prodUnit.value.trim()||"szt",
+        buy: toNum(prodBuy.value), sell: toNum(prodSell.value),
+        stock: Math.max(0, toNum(prodStock.value)), img: prodImg.value.trim()
+      };
+      // upsert by name
+      const ex = state.products.find(x=> x.name===name);
+      if(ex){ Object.assign(ex, p, {id:ex.id}); } else { state.products.push(p); }
+      alert("Produkt zapisany.");
+      renderProductsAdmin(); renderSale();
+    });
+    function renderProductsAdmin(){
+      const wrap = document.getElementById("prodAdminList");
+      wrap.innerHTML = "";
+      state.products.forEach(p=>{
+        const div = document.createElement("div");
+        div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${p.name}</strong> <span class="muted">[${p.cat}]</span></div>
+            <div class="muted">Zakup: ${PLN(p.buy)} • Sprzedaż: ${PLN(p.sell)} • Stan: ${p.stock} ${p.unit}</div>
+            <div class="muted">Zdjęcie: ${p.img? p.img : "-"}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="editProd('${p.id}')">Edytuj</button>
+            <button class="btn dan" onclick="deleteProd('${p.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.editProd = (id)=>{
+      const p = state.products.find(x=> x.id===id);
+      if(!p) return;
+      prodName.value = p.name; prodCat.value = p.cat; prodUnit.value = p.unit;
+      prodBuy.value = p.buy; prodSell.value = p.sell; prodStock.value = p.stock; prodImg.value = p.img;
+      alert("Dane produktu wczytane do formularza.");
+    };
+    window.deleteProd = (id)=>{
+      const i = state.products.findIndex(x=> x.id===id);
+      if(i>=0){ state.products.splice(i,1); renderProductsAdmin(); renderSale(); }
+    };
+
+    // Suppliers
+    document.getElementById("btnAddSup").addEventListener("click", ()=>{
+      const name = supName.value.trim(); if(!name) return alert("Podaj nazwę dostawcy.");
+      const s = { id: uid("s_"), name, phone: supPhone.value.trim(), addr: supAddr.value.trim() };
+      const ex = state.suppliers.find(x=> x.name===name);
+      if(ex){ Object.assign(ex, s, {id:ex.id}); } else { state.suppliers.push(s); }
+      alert("Dostawca zapisany."); renderSuppliers();
+    });
+    function renderSuppliers(){
+      const wrap = document.getElementById("supList");
+      wrap.innerHTML = "";
+      state.suppliers.forEach(s=>{
+        const div = document.createElement("div");
+        div.className="item";
+        div.innerHTML = `
+          <div class="col" style="flex:1">
+            <div><strong>${s.name}</strong> <span class="muted">${s.phone||""}</span></div>
+            <div class="muted">${s.addr||""}</div>
+          </div>
+          <div class="row">
+            <button class="btn" onclick="receiveDelivery('${s.id}')">Przyjmij dostawę (PIN)</button>
+            <button class="btn dan" onclick="deleteSupplier('${s.id}')">Usuń</button>
+          </div>
+        `;
+        wrap.appendChild(div);
+      });
+    }
+    window.receiveDelivery = (sid)=>{
+      showPin("delivery","PIN do przyjęcia dostawy", ()=>{
+        const name = prompt("Produkt (dokładna nazwa):");
+        const qty = toNum(prompt("Ilość:"));
+        const buy = toNum(prompt("Cena zakupu (PLN):"));
+        const p = state.products.find(x=> x.name===name);
+        if(!p){ alert("Nie znaleziono produktu – dodaj go najpierw w 'Produkty'."); return; }
+        p.stock += qty; p.buy = buy || p.buy;
+        alert("Dostawa przyjęta. Stan zaktualizowany.");
+        renderProductsAdmin(); renderSale();
+      });
+    };
+    window.deleteSupplier = (sid)=>{
+      const i = state.suppliers.findIndex(x=> x.id===sid);
+      if(i>=0){ state.suppliers.splice(i,1); renderSuppliers(); }
+    };
+
+    // Cash
+    document.getElementById("openCash").addEventListener("click", ()=>{
+      showPin("cash","PIN otwarcia kasy", ()=>{
+        state.cash.open = true; state.cash.openedAt = new Date().toISOString();
+        alert("Kasa otwarta.");
+      });
+    });
+    document.getElementById("closeCash").addEventListener("click", ()=>{
+      showPin("cash","PIN zamknięcia kasy", ()=>{
+        state.cash.open = false; state.cash.closedAt = new Date().toISOString();
+        alert("Kasa zamknięta.");
+      });
+    });
+
+    // History
+    document.getElementById("btnFilterHist").addEventListener("click", renderHistory);
+    function renderHistory(){
+      const wrap = document.getElementById("histList");
+      wrap.innerHTML = "";
+      const from = histFrom.value? new Date(histFrom.value) : null;
+      const to = histTo.value? new Date(histTo.value) : null;
+      const prodF = histProd.value?.toLowerCase() || "";
+      const supF = histSup.value?.toLowerCase() || "";
+      const filtered = state.sales.filter(s=>{
+        const d = new Date(s.at);
+        const inRange = (!from || d>=from) && (!to || d<=to);
+        const hasProd = prodF==="" || s.items.some(i=> i.name.toLowerCase().includes(prodF));
+        // supplier linkage omitted in demo (would need product->supplier mapping)
+        return inRange && hasProd;
+      });
+      let profit = 0, revenue = 0, cost = 0;
+      filtered.forEach(s=>{
+        const sumSell = s.items.reduce((ss,i)=> ss + i.price*i.qty, 0);
+        const sumBuy = s.items.reduce((sb,i)=> {
+          const p = state.products.find(x=> x.id===i.id);
+          return sb + (p?.buy||0)*i.qty;
+        }, 0);
+        revenue += sumSell; cost += sumBuy; profit += (sumSell - sumBuy);
+        const div = document.createElement("div");
+        div.className="item mono";
+        div.innerHTML = `
+          <div>${new Date(s.at).toLocaleString("pl-PL")} • ${s.id}</div>
+          <div>Pozycje: ${s.items.length} • Sprzedaż: ${PLN(sumSell)} PLN • Koszt: ${PLN(sumBuy)} PLN</div>
+        `;
+        wrap.appendChild(div);
+      });
+      document.getElementById("profitBox").innerHTML = `
+        <div>Sprzedaż: ${PLN(revenue)} PLN</div>
+        <div>Koszt: ${PLN(cost)} PLN</div>
+        <div>Marża: ${PLN(profit)} PLN</div>
+      `;
+    }
+
+    // Settings
+    function renderSettings(){
+      setShop.value = state.settings.shopName;
+      setVat.value = state.settings.vat;
+      setAccent.value = state.settings.accent;
+      setCompany.value = state.settings.company;
+      pinForce.value = state.settings.pins.force;
+      pinDelivery.value = state.settings.pins.delivery;
+      pinCash.value = state.settings.pins.cash;
+    }
+    document.getElementById("btnSaveSettings").addEventListener("click", ()=>{
+      state.settings.shopName = setShop.value || state.settings.shopName;
+      state.settings.vat = toNum(setVat.value||state.settings.vat);
+      state.settings.accent = setAccent.value || state.settings.accent;
+      state.settings.company = setCompany.value || state.settings.company;
+      state.settings.pins.force = pinForce.value || state.settings.pins.force;
+      state.settings.pins.delivery = pinDelivery.value || state.settings.pins.delivery;
+      state.settings.pins.cash = pinCash.value || state.settings.pins.cash;
+      document.getElementById("shopNameLabel").textContent = state.settings.shopName;
+      document.documentElement.style.setProperty("--accent", state.settings.accent);
+      store.set("pos_settings", state.settings);
+      alert("Ustawienia zapisane.");
+    });
+    document.getElementById("toggleTheme").addEventListener("click", ()=>{
+      state.settings.theme = state.settings.theme==="light" ? "dark" : "light";
+      document.body.dataset.theme = state.settings.theme==="light" ? "light" : "dark";
+      store.set("pos_settings", state.settings);
+    });
+    document.getElementById("btnResetAll").addEventListener("click", ()=>{
+      if(confirm("Na pewno zresetować wszystkie dane?")) {
+        localStorage.clear(); alert("Zresetowano. Odśwież stronę.");
+      }
+    });
+
+    // Start
+    renderSale(); renderOrders(); renderCustomers(); renderProductsAdmin(); renderSuppliers(); renderHistory();
   </script>
 </body>
-  </html>
+</html>
